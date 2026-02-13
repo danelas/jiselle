@@ -135,13 +135,16 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         image, user, db = await _find_image_for_user(tg_user.id)
         try:
             if not image:
-                # No images available — reply naturally
-                tool_call_id = get_last_tool_call_id(tg_user.id)
-                reply = await get_post_offer_reply(
-                    tg_user.id, tool_call_id, "nothing available", 0, user_name
-                )
+                # No content to sell — clear the dangling tool call from history
+                from bot.services.openai_chat import _histories
+                hist = _histories.get(tg_user.id, [])
+                # Remove the tool_calls entry so history stays clean
+                if hist and hist[-1].get("tool_calls"):
+                    hist.pop()
+                # Re-add user message and give a teasing "not yet" reply
+                hist.append({"role": "assistant", "content": "I'm working on something new just for you… not quite ready yet, but soon 💋"})
                 await update.message.reply_text(
-                    reply or "I'm putting together something new just for you… check back soon 💋"
+                    "I'm working on something new just for you… not quite ready yet, but soon 💋"
                 )
                 return
 
