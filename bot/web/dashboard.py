@@ -6,8 +6,9 @@ Protected by simple password auth via cookie session.
 import logging
 import datetime
 from pathlib import Path
+from typing import List
 from fastapi import APIRouter, Request, Form, UploadFile, File, Depends, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from bot.config import ADMIN_PASSWORD, INSTAGRAM_USER_ID, INSTAGRAM_ACCESS_TOKEN
@@ -128,11 +129,28 @@ async def images_page(request: Request, content_type: str = "all", _=Depends(req
 
 # ── Upload ────────────────────────────────────────────
 
+def _ensure_default_categories(db):
+    """Create default categories if none exist."""
+    existing = db.query(Category).count()
+    if existing == 0:
+        defaults = [
+            Category(name="Instagram Posts", emoji="📸", sort_order=1, description="SFW content for Instagram"),
+            Category(name="Exclusive Private", emoji="🔒", sort_order=2, description="Premium private content"),
+            Category(name="Lingerie", emoji="🌹", sort_order=3, description="Tasteful lingerie content"),
+            Category(name="Lifestyle", emoji="✨", sort_order=4, description="Day-to-day lifestyle content"),
+        ]
+        for cat in defaults:
+            db.add(cat)
+        db.commit()
+        logger.info("Created default categories")
+
+
 @router.get("/upload", response_class=HTMLResponse)
 async def upload_page(request: Request, _=Depends(require_login)):
     db = SessionLocal()
     try:
-        categories = db.query(Category).filter(Category.is_active == True).all()
+        _ensure_default_categories(db)
+        categories = db.query(Category).filter(Category.is_active == True).order_by(Category.sort_order).all()
         return templates.TemplateResponse("upload.html", {
             "request": request,
             "categories": categories,
@@ -144,42 +162,50 @@ async def upload_page(request: Request, _=Depends(require_login)):
 @router.post("/upload")
 async def upload_submit(
     request: Request,
-    title: str = Form(...),
-    description: str = Form(""),
-    category_id: int = Form(...),
     content_type: str = Form(...),
+    category_id: int = Form(...),
     tier: str = Form("basic"),
     price: float = Form(5.0),
-    image_file: UploadFile = File(...),
+    image_files: List[UploadFile] = File(...),
     _=Depends(require_login),
 ):
-    file_bytes = await image_file.read()
-    if not file_bytes:
-        raise HTTPException(status_code=400, detail="No file uploaded")
-
-    cloud_folder = folder_for_content_type(content_type)
-    filename = image_file.filename or "upload"
-
-    try:
-        result = upload_image_from_bytes(bytes(file_bytes), filename, folder=cloud_folder)
-    except Exception as e:
-        logger.error(f"Cloudinary upload failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
-
     db = SessionLocal()
+    uploaded = 0
+    errors = []
+
     try:
-        image = Image(
-            title=title,
-            description=description,
-            category_id=category_id,
-            tier=tier,
-            price=price,
-            cloudinary_url=result["full_url"],
-            cloudinary_public_id=result["public_id"],
-            content_type=content_type,
-        )
-        db.add(image)
+        for image_file in image_files:
+            file_bytes = await image_file.read()
+            if not file_bytes:
+                continue
+
+            cloud_folder = folder_for_content_type(content_type)
+            filename = image_file.filename or "upload"
+            # Auto-title from filename (strip extension)
+            title = filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").title()
+
+            try:
+                result = upload_image_from_bytes(bytes(file_bytes), filename, folder=cloud_folder)
+            except Exception as e:
+                logger.error(f"Cloudinary upload failed for {filename}: {e}")
+                errors.append(filename)
+                continue
+
+            image = Image(
+                title=title,
+                description="",
+                category_id=category_id,
+                tier=tier,
+                price=price,
+                cloudinary_url=result["full_url"],
+                cloudinary_public_id=result["public_id"],
+                content_type=content_type,
+            )
+            db.add(image)
+            uploaded += 1
+
         db.commit()
+        logger.info(f"Uploaded {uploaded} images ({len(errors)} failed)")
         return RedirectResponse("/dashboard/images", status_code=303)
     finally:
         db.close()

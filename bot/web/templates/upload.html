@@ -1,30 +1,30 @@
 {% extends "base.html" %}
 {% set active_page = "upload" %}
 
-{% block title %}Upload Image{% endblock %}
+{% block title %}Upload Images{% endblock %}
 
 {% block content %}
 <div class="mb-8">
-    <h1 class="text-2xl font-bold">Upload Image</h1>
-    <p class="text-gray-500 mt-1">Add a new image to your content library</p>
+    <h1 class="text-2xl font-bold">Upload Images</h1>
+    <p class="text-gray-500 mt-1">Add images to your content library — select multiple at once</p>
 </div>
 
 <div class="max-w-2xl">
-    <form method="POST" action="/dashboard/upload" enctype="multipart/form-data" class="space-y-6">
+    <form method="POST" action="/dashboard/upload" enctype="multipart/form-data" class="space-y-6" id="upload-form">
 
-        <!-- Image file -->
+        <!-- Image files (multiple) -->
         <div>
-            <label class="block text-sm font-medium text-gray-300 mb-2">Image File</label>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Image Files</label>
             <div id="drop-zone"
                  class="border-2 border-dashed border-white/10 rounded-xl p-10 text-center hover:border-accent-400/40 transition cursor-pointer">
-                <input type="file" name="image_file" accept="image/*" required id="file-input" class="hidden">
+                <input type="file" name="image_files" accept="image/*" required id="file-input" class="hidden" multiple>
                 <div id="drop-text">
-                    <p class="text-gray-400 text-lg mb-1">📷 Drop image here or click to browse</p>
-                    <p class="text-gray-600 text-sm">JPG, PNG, WebP — Max 20MB</p>
+                    <p class="text-gray-400 text-lg mb-1">📷 Drop images here or click to browse</p>
+                    <p class="text-gray-600 text-sm">Select multiple files — JPG, PNG, WebP</p>
                 </div>
                 <div id="file-preview" class="hidden">
-                    <img id="preview-img" class="max-h-48 mx-auto rounded-lg mb-2">
-                    <p id="file-name" class="text-gray-400 text-sm"></p>
+                    <div id="preview-grid" class="grid grid-cols-4 gap-2 mb-3"></div>
+                    <p id="file-count" class="text-accent-400 font-medium text-sm"></p>
                 </div>
             </div>
         </div>
@@ -52,20 +52,6 @@
             </div>
         </div>
 
-        <!-- Title -->
-        <div>
-            <label class="block text-sm font-medium text-gray-300 mb-2">Title</label>
-            <input type="text" name="title" required placeholder="e.g. Beach Sunset"
-                   class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-accent-400/50 focus:ring-1 focus:ring-accent-400/30 transition">
-        </div>
-
-        <!-- Description -->
-        <div>
-            <label class="block text-sm font-medium text-gray-300 mb-2">Description <span class="text-gray-600">(optional)</span></label>
-            <textarea name="description" rows="3" placeholder="Short description..."
-                      class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-accent-400/50 focus:ring-1 focus:ring-accent-400/30 transition resize-none"></textarea>
-        </div>
-
         <!-- Category -->
         <div>
             <label class="block text-sm font-medium text-gray-300 mb-2">Category</label>
@@ -74,17 +60,14 @@
                 {% for cat in categories %}
                 <option value="{{ cat.id }}">{{ cat.emoji or '📁' }} {{ cat.name }}</option>
                 {% endfor %}
-                {% if not categories %}
-                <option disabled>No categories — create one via Telegram /admin first</option>
-                {% endif %}
             </select>
         </div>
 
         <div class="grid grid-cols-2 gap-6">
             <!-- Price -->
             <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">Price ($)</label>
-                <input type="number" name="price" value="5.00" step="0.01" min="0" required
+                <label class="block text-sm font-medium text-gray-300 mb-2">Price per image ($)</label>
+                <input type="number" name="price" value="4.99" step="0.01" min="0" required
                        class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-400/50 transition">
             </div>
 
@@ -101,10 +84,12 @@
             </div>
         </div>
 
+        <p class="text-gray-600 text-xs">Titles are auto-generated from filenames. You can edit them later in the gallery.</p>
+
         <!-- Submit -->
-        <button type="submit"
+        <button type="submit" id="upload-btn"
                 class="w-full bg-accent-400 hover:bg-accent-500 text-white font-semibold py-3.5 rounded-lg transition text-lg">
-            📤 Upload Image
+            📤 Upload Images
         </button>
     </form>
 </div>
@@ -116,8 +101,10 @@
     const fileInput = document.getElementById('file-input');
     const dropText = document.getElementById('drop-text');
     const filePreview = document.getElementById('file-preview');
-    const previewImg = document.getElementById('preview-img');
-    const fileName = document.getElementById('file-name');
+    const previewGrid = document.getElementById('preview-grid');
+    const fileCount = document.getElementById('file-count');
+    const uploadBtn = document.getElementById('upload-btn');
+    const uploadForm = document.getElementById('upload-form');
 
     dropZone.addEventListener('click', () => fileInput.click());
 
@@ -135,23 +122,44 @@
         dropZone.classList.remove('border-accent-400/60');
         if (e.dataTransfer.files.length) {
             fileInput.files = e.dataTransfer.files;
-            showPreview(e.dataTransfer.files[0]);
+            showPreviews(e.dataTransfer.files);
         }
     });
 
     fileInput.addEventListener('change', () => {
-        if (fileInput.files.length) showPreview(fileInput.files[0]);
+        if (fileInput.files.length) showPreviews(fileInput.files);
     });
 
-    function showPreview(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            previewImg.src = e.target.result;
-            fileName.textContent = file.name;
-            dropText.classList.add('hidden');
-            filePreview.classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
+    function showPreviews(files) {
+        previewGrid.innerHTML = '';
+        const count = files.length;
+        const show = Math.min(count, 8);
+
+        for (let i = 0; i < show; i++) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'w-full aspect-square object-cover rounded-lg';
+                previewGrid.appendChild(img);
+            };
+            reader.readAsDataURL(files[i]);
+        }
+
+        fileCount.textContent = count === 1
+            ? `1 image selected`
+            : `${count} images selected`;
+        dropText.classList.add('hidden');
+        filePreview.classList.remove('hidden');
+
+        uploadBtn.textContent = count === 1
+            ? '📤 Upload Image'
+            : `📤 Upload ${count} Images`;
     }
+
+    uploadForm.addEventListener('submit', () => {
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = '⏳ Uploading...';
+    });
 </script>
 {% endblock %}
