@@ -85,12 +85,6 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         total_users = db.query(User).count()
         total_orders = db.query(Order).filter(Order.status == OrderStatus.COMPLETED.value).count()
-        total_revenue = (
-            db.query(Order)
-            .filter(Order.status == OrderStatus.COMPLETED.value)
-            .with_entities(db.query(Order.amount).filter(Order.status == OrderStatus.COMPLETED.value))
-        )
-        # Calculate revenue
         completed = db.query(Order).filter(Order.status == OrderStatus.COMPLETED.value).all()
         revenue = sum(o.amount for o in completed)
         total_images = db.query(Image).count()

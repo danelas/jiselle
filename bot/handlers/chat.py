@@ -116,73 +116,77 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     tg_user = update.effective_user
     user_name = tg_user.first_name or tg_user.username or ""
 
-    # Show typing indicator
-    await update.message.chat.send_action("typing")
+    try:
+        # Show typing indicator
+        await update.message.chat.send_action("typing")
 
-    result = await chat(
-        user_id=tg_user.id,
-        user_message=update.message.text,
-        user_name=user_name,
-    )
+        result = await chat(
+            user_id=tg_user.id,
+            user_message=update.message.text,
+            user_name=user_name,
+        )
 
-    # Normal text reply
-    if isinstance(result, str):
-        await update.message.reply_text(result)
-        return
+        # Normal text reply
+        if isinstance(result, str):
+            await update.message.reply_text(result)
+            return
 
-    # AI triggered purchase intent
-    if isinstance(result, ContentRequest):
-        image, user, db = await _find_image_for_user(tg_user.id)
-        try:
-            if not image:
-                # No content to sell — clear the dangling tool call from history
-                from bot.services.openai_chat import _histories
-                hist = _histories.get(tg_user.id, [])
-                # Remove the tool_calls entry so history stays clean
-                if hist and hist[-1].get("tool_calls"):
-                    hist.pop()
-                # Re-add user message and give a teasing "not yet" reply
-                hist.append({"role": "assistant", "content": "I'm working on something new just for you… not quite ready yet, but soon 💋"})
-                await update.message.reply_text(
-                    "I'm working on something new just for you… not quite ready yet, but soon 💋"
-                )
-                return
-
-            if not user:
-                await update.message.reply_text("Send /start first so I know who you are 💋")
-                return
-
-            # Create payment
+        # AI triggered purchase intent
+        if isinstance(result, ContentRequest):
+            db = None
             try:
+                image, user, db = await _find_image_for_user(tg_user.id)
+
+                if not image:
+                    # No content to sell — clear the dangling tool call from history
+                    from bot.services.openai_chat import _histories
+                    hist = _histories.get(tg_user.id, [])
+                    if hist and hist[-1].get("tool_calls"):
+                        hist.pop()
+                    hist.append({"role": "assistant", "content": "I'm working on something new just for you… not quite ready yet, but soon 💋"})
+                    await update.message.reply_text(
+                        "I'm working on something new just for you… not quite ready yet, but soon 💋"
+                    )
+                    return
+
+                if not user:
+                    await update.message.reply_text("Send /start first so I know who you are 💋")
+                    return
+
+                # Create payment
                 payment = await _create_payment_for_chat(user, image, db)
-            except Exception as e:
-                logger.error(f"Payment creation failed in chat: {e}")
-                await update.message.reply_text(
-                    "Something went wrong on my end… try again in a sec? 💭"
+
+                # Get AI's natural response about the offer
+                tool_call_id = get_last_tool_call_id(tg_user.id)
+                ai_reply = await get_post_offer_reply(
+                    tg_user.id, tool_call_id, image.title, payment["price"], user_name
                 )
-                return
 
-            # Get AI's natural response about the offer
-            tool_call_id = get_last_tool_call_id(tg_user.id)
-            ai_reply = await get_post_offer_reply(
-                tg_user.id, tool_call_id, image.title, payment["price"], user_name
-            )
+                # Send AI message + payment button
+                keyboard = [
+                    [InlineKeyboardButton(
+                        f"💳 Unlock for ${payment['price']:.2f}",
+                        url=payment["approve_url"]
+                    )],
+                ]
 
-            # Send AI message + payment button
-            keyboard = [
-                [InlineKeyboardButton(
-                    f"💳 Unlock for ${payment['price']:.2f}",
-                    url=payment["approve_url"]
-                )],
-            ]
+                await update.message.reply_text(
+                    ai_reply,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
 
+            finally:
+                if db:
+                    db.close()
+
+    except Exception as e:
+        logger.error(f"Chat handler error for user {tg_user.id}: {e}", exc_info=True)
+        try:
             await update.message.reply_text(
-                ai_reply,
-                reply_markup=InlineKeyboardMarkup(keyboard),
+                "I got a little distracted… send that again? 💭"
             )
-
-        finally:
-            db.close()
+        except Exception:
+            pass
 
 
 async def reset_chat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
