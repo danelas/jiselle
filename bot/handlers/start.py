@@ -103,7 +103,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/mypurchases — Your unlocked content\n"
         "/myrequests — Your custom requests\n"
         "/referral — Share & earn free unlocks\n"
+        "/newchat — Start a fresh conversation with me\n"
         "/help — This message\n"
+        "\n💬 **Just type anything** to chat with me!"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 

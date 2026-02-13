@@ -18,6 +18,7 @@ from bot.handlers.subscription import get_subscription_handlers, activate_subscr
 from bot.handlers.flash_sales import get_flash_sale_handlers
 from bot.handlers.custom_requests import get_custom_request_handlers
 from bot.handlers.loyalty import get_loyalty_handlers
+from bot.handlers.chat import get_chat_handlers
 from bot.services.paypal import verify_webhook_signature, capture_order as paypal_capture
 from bot.services.delivery import deliver_image, complete_order
 from bot.services.drip import process_drip_content, check_flash_sales, check_expiring_subscriptions
@@ -61,6 +62,10 @@ def build_telegram_app() -> Application:
         app.add_handler(handler)
 
     for handler in get_loyalty_handlers():
+        app.add_handler(handler)
+
+    # Chat handler MUST be last — it catches all remaining text messages
+    for handler in get_chat_handlers():
         app.add_handler(handler)
 
     return app

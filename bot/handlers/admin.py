@@ -1048,9 +1048,25 @@ async def ig_image_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return ConversationHandler.END
 
+        # Generate AI caption suggestion
+        ai_caption = ""
+        try:
+            from bot.services.openai_chat import generate_caption
+            ai_caption = await generate_caption(image.title, image.description or "")
+        except Exception:
+            pass
+
+        caption_msg = f"📸 **{image.title}**\n\n"
+        if ai_caption:
+            caption_msg += f"✨ **AI-generated caption:**\n_{ai_caption}_\n\n"
+            caption_msg += "Send /use to use this caption, type your own, or /skip for no caption:"
+            context.user_data["ig_ai_caption"] = ai_caption
+        else:
+            caption_msg += "Enter a caption for the Instagram post (or /skip):"
+
         await query.message.reply_photo(
             photo=image.cloudinary_url,
-            caption=f"📸 **{image.title}**\n\nEnter a caption for the Instagram post (or /skip):",
+            caption=caption_msg,
             parse_mode="Markdown"
         )
         return AWAITING_IG_CAPTION
@@ -1061,7 +1077,12 @@ async def ig_image_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ig_caption_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Receive caption and post to Instagram."""
     text = update.message.text.strip()
-    caption = "" if text == "/skip" else text
+    if text == "/skip":
+        caption = ""
+    elif text == "/use":
+        caption = context.user_data.get("ig_ai_caption", "")
+    else:
+        caption = text
     img_id = context.user_data.get("ig_post_img_id")
 
     if not img_id:

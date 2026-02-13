@@ -16,6 +16,7 @@ from bot.models.schemas import (
     Image, Category, ContentType, ScheduledPost, User, Order, OrderStatus,
 )
 from bot.services.cloudinary_svc import upload_image_from_bytes, folder_for_content_type
+from bot.services.openai_chat import generate_caption
 
 logger = logging.getLogger(__name__)
 
@@ -230,6 +231,14 @@ async def schedule_submit(
         image = db.query(Image).get(image_id)
         if not image or image.content_type != ContentType.INSTAGRAM.value:
             raise HTTPException(status_code=400, detail="Image is not Instagram-safe")
+
+        # Auto-generate AI caption if left blank
+        if not caption.strip():
+            try:
+                caption = await generate_caption(image.title, image.description or "")
+            except Exception as e:
+                logger.warning(f"AI caption generation failed: {e}")
+                caption = ""
 
         scheduled_at = datetime.datetime.fromisoformat(f"{scheduled_date}T{scheduled_time}")
 
