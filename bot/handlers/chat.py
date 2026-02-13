@@ -27,6 +27,7 @@ async def _find_image_for_user(telegram_id: int):
     try:
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
+            logger.warning(f"No User record for telegram_id={telegram_id}")
             return None, None, db
 
         # Get IDs of images user already owns
@@ -46,15 +47,18 @@ async def _find_image_for_user(telegram_id: int):
             q = q.filter(~Image.id.in_(owned_ids))
 
         available = q.all()
+        logger.info(f"Private images for user {telegram_id}: {len(available)} available, {len(owned_ids)} owned")
 
         if not available:
             # Fallback: try any active image not owned
-            available = db.query(Image).filter(
-                Image.is_active == True,
-                ~Image.id.in_(owned_ids) if owned_ids else True,
-            ).all()
+            fallback_q = db.query(Image).filter(Image.is_active == True)
+            if owned_ids:
+                fallback_q = fallback_q.filter(~Image.id.in_(owned_ids))
+            available = fallback_q.all()
+            logger.info(f"Fallback (any active image): {len(available)} available")
 
         if not available:
+            logger.warning(f"No images at all for user {telegram_id}")
             return None, user, db
 
         image = random.choice(available)
@@ -137,7 +141,12 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             try:
                 image, user, db = await _find_image_for_user(tg_user.id)
 
+                if not user:
+                    await update.message.reply_text("Send /start first so I know who you are 💋")
+                    return
+
                 if not image:
+                    logger.info(f"No images available for user {tg_user.id}")
                     # No content to sell — clear the dangling tool call from history
                     from bot.services.openai_chat import _histories
                     hist = _histories.get(tg_user.id, [])
@@ -147,10 +156,6 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     await update.message.reply_text(
                         "I'm working on something new just for you… not quite ready yet, but soon 💋"
                     )
-                    return
-
-                if not user:
-                    await update.message.reply_text("Send /start first so I know who you are 💋")
                     return
 
                 # Create payment
