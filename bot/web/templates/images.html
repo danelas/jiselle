@@ -36,7 +36,7 @@
     {% for img in images %}
     <div class="card rounded-xl overflow-hidden group">
         <div class="aspect-square bg-dark-700 relative">
-            <img src="{{ img.cloudinary_url }}" alt="{{ img.title }}"
+            <img src="/dashboard/images/{{ img.id }}/file" alt="{{ img.title }}"
                  class="w-full h-full object-cover" loading="lazy">
             <!-- Content type badge -->
             <div class="absolute top-2 right-2">

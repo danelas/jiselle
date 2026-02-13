@@ -222,8 +222,9 @@ async def image_detail_callback(update: Update, context: ContextTypes.DEFAULT_TY
         if already_owned:
             # Send the full image directly
             text = f"✅ **{image.title}**\n\nYou already own this! Here it is:"
+            photo_source = image.file_data if image.file_data else image.cloudinary_url
             await query.message.reply_photo(
-                photo=image.cloudinary_url,
+                photo=photo_source,
                 caption=text,
                 parse_mode="Markdown"
             )

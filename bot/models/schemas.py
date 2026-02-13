@@ -1,7 +1,7 @@
 import datetime
 from sqlalchemy import (
     Column, Integer, BigInteger, String, Float, Boolean,
-    DateTime, ForeignKey, Text, Enum as SAEnum
+    DateTime, ForeignKey, Text, Enum as SAEnum, LargeBinary
 )
 from sqlalchemy.orm import relationship
 from bot.models.database import Base
@@ -86,8 +86,10 @@ class Image(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     tier = Column(String(50), default=ContentTier.BASIC.value)
     price = Column(Float, nullable=False, default=5.0)
-    cloudinary_url = Column(Text, nullable=False)  # full image
+    cloudinary_url = Column(Text, nullable=True)  # legacy — kept for backward compat
     cloudinary_public_id = Column(String(255), nullable=True)
+    file_data = Column(LargeBinary, nullable=True)  # image bytes stored in DB
+    file_mimetype = Column(String(50), nullable=True)  # e.g. image/jpeg
     content_type = Column(String(20), nullable=False, default=ContentType.PRIVATE.value)  # instagram or private
     is_bundle = Column(Boolean, default=False)
     bundle_size = Column(Integer, nullable=True)

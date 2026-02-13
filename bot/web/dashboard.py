@@ -5,10 +5,11 @@ Protected by simple password auth via cookie session.
 
 import logging
 import datetime
+import mimetypes
 from pathlib import Path
 from typing import List
 from fastapi import APIRouter, Request, Form, UploadFile, File, Depends, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from bot.config import ADMIN_PASSWORD, INSTAGRAM_USER_ID, INSTAGRAM_ACCESS_TOKEN
@@ -16,7 +17,6 @@ from bot.models.database import SessionLocal
 from bot.models.schemas import (
     Image, Category, ContentType, ScheduledPost, User, Order, OrderStatus,
 )
-from bot.services.cloudinary_svc import upload_image_from_bytes, folder_for_content_type
 from bot.services.openai_chat import generate_caption
 
 logger = logging.getLogger(__name__)
@@ -179,17 +179,9 @@ async def upload_submit(
             if not file_bytes:
                 continue
 
-            cloud_folder = folder_for_content_type(content_type)
             filename = image_file.filename or "upload"
-            # Auto-title from filename (strip extension)
             title = filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").title()
-
-            try:
-                result = upload_image_from_bytes(bytes(file_bytes), filename, folder=cloud_folder)
-            except Exception as e:
-                logger.error(f"Cloudinary upload failed for {filename}: {e}")
-                errors.append(filename)
-                continue
+            mimetype = image_file.content_type or mimetypes.guess_type(filename)[0] or "image/jpeg"
 
             image = Image(
                 title=title,
@@ -197,8 +189,8 @@ async def upload_submit(
                 category_id=category_id,
                 tier=tier,
                 price=price,
-                cloudinary_url=result["full_url"],
-                cloudinary_public_id=result["public_id"],
+                file_data=file_bytes,
+                file_mimetype=mimetype,
                 content_type=content_type,
             )
             db.add(image)
@@ -207,6 +199,23 @@ async def upload_submit(
         db.commit()
         logger.info(f"Uploaded {uploaded} images ({len(errors)} failed)")
         return RedirectResponse("/dashboard/images", status_code=303)
+    finally:
+        db.close()
+
+
+@router.get("/images/{image_id}/file")
+async def serve_image(image_id: int):
+    """Serve an image file from the database."""
+    db = SessionLocal()
+    try:
+        image = db.query(Image).filter(Image.id == image_id).first()
+        if not image or not image.file_data:
+            raise HTTPException(status_code=404, detail="Image not found")
+        return Response(
+            content=image.file_data,
+            media_type=image.file_mimetype or "image/jpeg",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
     finally:
         db.close()
 

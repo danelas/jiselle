@@ -11,6 +11,7 @@ Private/NSFW content is blocked at multiple levels:
 import logging
 import httpx
 import datetime
+from bot.config import BASE_URL
 from bot.models.database import SessionLocal
 from bot.models.schemas import Image, ContentType
 
@@ -100,7 +101,7 @@ async def post_to_instagram(
         container_resp = await client.post(
             f"{api_base}/{ig_user_id}/media",
             params={
-                "image_url": image.cloudinary_url,
+                "image_url": image.cloudinary_url or f"{BASE_URL}/dashboard/images/{image.id}/file",
                 "caption": caption,
                 "access_token": ig_access_token,
             }

@@ -325,8 +325,9 @@ async def loyalty_pick_image_callback(update: Update, context: ContextTypes.DEFA
         db.commit()
 
         # Send the image
+        photo_source = image.file_data if image.file_data else image.cloudinary_url
         await query.message.reply_photo(
-            photo=image.cloudinary_url,
+            photo=photo_source,
             caption=(
                 f"🎁 **{image.title}** — Unlocked with Loyalty Points!\n\n"
                 f"Enjoy! 💋"

@@ -32,12 +32,12 @@
                     <select name="image_id" required id="image-select"
                             class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-400/50 transition">
                         {% for img in ig_images %}
-                        <option value="{{ img.id }}" data-url="{{ img.cloudinary_url }}">📸 {{ img.title }}</option>
+                        <option value="{{ img.id }}" data-url="/dashboard/images/{{ img.id }}/file">📸 {{ img.title }}</option>
                         {% endfor %}
                     </select>
                     <!-- Image preview -->
                     <div class="mt-3">
-                        <img id="schedule-preview" src="{{ ig_images[0].cloudinary_url if ig_images else '' }}"
+                        <img id="schedule-preview" src="{{ '/dashboard/images/' ~ ig_images[0].id ~ '/file' if ig_images else '' }}"
                              class="w-full aspect-square object-cover rounded-lg">
                     </div>
                 </div>
@@ -90,7 +90,7 @@
                 <div class="px-6 py-4 flex items-center gap-4">
                     <!-- Thumbnail -->
                     {% if post.image %}
-                    <img src="{{ post.image.cloudinary_url }}" class="w-16 h-16 rounded-lg object-cover flex-shrink-0">
+                    <img src="/dashboard/images/{{ post.image.id }}/file" class="w-16 h-16 rounded-lg object-cover flex-shrink-0">
                     {% else %}
                     <div class="w-16 h-16 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
                         <span class="text-gray-600">?</span>

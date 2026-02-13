@@ -27,10 +27,15 @@ async def deliver_image(bot, order_id: int):
             logger.error(f"User or image not found for order {order_id}")
             return False
 
-        # Send the full image
+        # Send the full image (from DB bytes or legacy cloudinary URL)
+        photo_source = image.file_data if image.file_data else image.cloudinary_url
+        if not photo_source:
+            logger.error(f"No image data for image {image.id}")
+            return False
+
         await bot.send_photo(
             chat_id=user.telegram_id,
-            photo=image.cloudinary_url,
+            photo=photo_source,
             caption=(
                 f"✅ **Payment received!**\n\n"
                 f"🖼 **{image.title}**\n"

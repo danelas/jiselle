@@ -10,7 +10,7 @@ from bot.models.schemas import (
     Category, Image, Order, User, OrderStatus, ContentType,
     FlashSale, DripSchedule, CustomRequest, RequestStatus, Subscription, SubscriptionStatus
 )
-from bot.services.cloudinary_svc import upload_image_from_bytes, folder_for_content_type
+import mimetypes
 
 logger = logging.getLogger(__name__)
 
@@ -323,10 +323,8 @@ async def upload_image_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Please send a photo or document.")
             return AWAITING_IMAGE_FILE
 
-        # Route to correct Cloudinary folder based on content type
         content_type = context.user_data.get("img_content_type", "private")
-        cloud_folder = folder_for_content_type(content_type)
-        result = upload_image_from_bytes(bytes(file_bytes), filename, folder=cloud_folder)
+        mimetype = mimetypes.guess_type(filename)[0] or "image/jpeg"
 
         # Save to database
         db = SessionLocal()
@@ -337,8 +335,8 @@ async def upload_image_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 category_id=context.user_data.get("img_cat_id"),
                 tier=context.user_data.get("img_tier", "basic"),
                 price=context.user_data.get("img_price", 5.0),
-                cloudinary_url=result["full_url"],
-                cloudinary_public_id=result["public_id"],
+                file_data=bytes(file_bytes),
+                file_mimetype=mimetype,
                 content_type=content_type,
             )
             db.add(image)
@@ -918,19 +916,16 @@ async def admin_deliver_request_image(update: Update, context: ContextTypes.DEFA
             await update.message.reply_text("❌ Please send a photo or document.")
             return AWAITING_REQ_DELIVERY_IMAGE
 
-        # Upload to Cloudinary
-        result = upload_image_from_bytes(bytes(file_bytes), filename, folder="custom_requests")
-
         # Save as image in DB
         import datetime
+        mimetype_cr = mimetypes.guess_type(filename)[0] or "image/jpeg"
         image = Image(
             title=f"Custom #{req_id}",
             description=req.description[:200],
             tier="vip",
             price=req.price or 0,
-            cloudinary_url=result["full_url"],
-            cloudinary_public_id=result["public_id"],
-            preview_url=result["preview_url"],
+            file_data=bytes(file_bytes),
+            file_mimetype=mimetype_cr,
             is_active=False,  # custom images are private
         )
         db.add(image)
@@ -1058,8 +1053,9 @@ async def ig_image_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             caption_msg += "Enter a caption for the Instagram post (or /skip):"
 
+        photo_source = image.file_data if image.file_data else image.cloudinary_url
         await query.message.reply_photo(
-            photo=image.cloudinary_url,
+            photo=photo_source,
             caption=caption_msg,
             parse_mode="Markdown"
         )

@@ -65,8 +65,9 @@ async def buy_image_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             .first()
         )
         if existing:
+            photo_source = image.file_data if image.file_data else image.cloudinary_url
             await query.message.reply_photo(
-                photo=image.cloudinary_url,
+                photo=photo_source,
                 caption=f"✅ You already own **{image.title}**! Here it is:",
                 parse_mode="Markdown"
             )
@@ -175,8 +176,9 @@ async def free_unlock_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         db.commit()
 
         # Send the full image
+        photo_source = image.file_data if image.file_data else image.cloudinary_url
         await query.message.reply_photo(
-            photo=image.cloudinary_url,
+            photo=photo_source,
             caption=(
                 f"🎁 **{image.title}** — Unlocked for FREE!\n\n"
                 f"Enjoy! Want more? Browse my collection 💋"
@@ -293,8 +295,9 @@ async def resend_image_callback(update: Update, context: ContextTypes.DEFAULT_TY
             await query.message.reply_text("❌ You don't own this image.")
             return
 
+        photo_source = image.file_data if image.file_data else image.cloudinary_url
         await query.message.reply_photo(
-            photo=image.cloudinary_url,
+            photo=photo_source,
             caption=f"📸 **{image.title}**",
             parse_mode="Markdown"
         )

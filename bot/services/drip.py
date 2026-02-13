@@ -90,18 +90,20 @@ async def process_drip_content(bot):
                                 callback_data=f"img_{image.id}"
                             )
                         ]]
+                        photo_src = image.file_data if image.file_data else (image.preview_url or image.cloudinary_url)
                         await bot.send_photo(
                             chat_id=user.telegram_id,
-                            photo=image.preview_url or image.cloudinary_url,
+                            photo=photo_src,
                             caption=f"🔥 **New Drop!**\n\n{teaser}\n\n{image.title}",
                             reply_markup=InlineKeyboardMarkup(keyboard),
                             parse_mode="Markdown"
                         )
                     else:
                         # Paid tier drip: send full image as perk
+                        photo_src = image.file_data if image.file_data else image.cloudinary_url
                         await bot.send_photo(
                             chat_id=user.telegram_id,
-                            photo=image.cloudinary_url,
+                            photo=photo_src,
                             caption=(
                                 f"💎 **VIP Exclusive Drop!**\n\n"
                                 f"{teaser}\n\n"
