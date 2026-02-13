@@ -89,20 +89,19 @@ async def lifespan(app: FastAPI):
     # Start scheduler for drip content, flash sales, subscription expiry
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
-        lambda: asyncio.ensure_future(process_drip_content(tg_app.bot)),
-        "interval", minutes=5, id="drip_content"
+        process_drip_content, "interval", minutes=5, id="drip_content",
+        args=[tg_app.bot],
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(check_flash_sales(tg_app.bot)),
-        "interval", minutes=2, id="flash_sales"
+        check_flash_sales, "interval", minutes=2, id="flash_sales",
+        args=[tg_app.bot],
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(check_expiring_subscriptions(tg_app.bot)),
-        "interval", hours=6, id="sub_expiry"
+        check_expiring_subscriptions, "interval", hours=6, id="sub_expiry",
+        args=[tg_app.bot],
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(process_scheduled_posts()),
-        "interval", minutes=1, id="ig_scheduled_posts"
+        process_scheduled_posts, "interval", minutes=1, id="ig_scheduled_posts",
     )
     scheduler.start()
     logger.info("Scheduler started (drip: 5min, flash: 2min, subs: 6hr, ig: 1min)")
