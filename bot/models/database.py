@@ -36,5 +36,7 @@ def _run_migrations():
                 conn.execute(text("ALTER TABLE images ADD COLUMN file_data BYTEA"))
             if "file_mimetype" not in columns:
                 conn.execute(text("ALTER TABLE images ADD COLUMN file_mimetype VARCHAR(50)"))
+            if "is_explicit" not in columns:
+                conn.execute(text("ALTER TABLE images ADD COLUMN is_explicit BOOLEAN DEFAULT FALSE"))
             # Make cloudinary_url nullable if it wasn't already
             conn.execute(text("ALTER TABLE images ALTER COLUMN cloudinary_url DROP NOT NULL"))

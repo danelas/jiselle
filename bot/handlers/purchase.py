@@ -163,6 +163,14 @@ async def free_unlock_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return
 
+        # Block free unlock on explicit/nude content
+        if image.is_explicit:
+            await query.message.reply_text(
+                "🔞 This content is exclusive — free unlocks can't be used here.\n"
+                "Use 💳 to unlock it!"
+            )
+            return
+
         # Only allow free unlock on basic tier
         if image.tier not in ("free", "basic"):
             await query.message.reply_text(

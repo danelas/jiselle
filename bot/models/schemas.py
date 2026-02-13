@@ -91,6 +91,7 @@ class Image(Base):
     file_data = Column(LargeBinary, nullable=True)  # image bytes stored in DB
     file_mimetype = Column(String(50), nullable=True)  # e.g. image/jpeg
     content_type = Column(String(20), nullable=False, default=ContentType.PRIVATE.value)  # instagram or private
+    is_explicit = Column(Boolean, default=False)  # nude/explicit — blocked from free unlocks
     is_bundle = Column(Boolean, default=False)
     bundle_size = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)

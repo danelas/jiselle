@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Resp
 from fastapi.templating import Jinja2Templates
 
 from bot.config import ADMIN_PASSWORD, INSTAGRAM_USER_ID, INSTAGRAM_ACCESS_TOKEN
+from bot.services.nudity_check import classify_image
 from bot.models.database import SessionLocal
 from bot.models.schemas import (
     Image, Category, ContentType, ScheduledPost, User, Order, OrderStatus,
@@ -167,6 +168,7 @@ async def upload_submit(
     tier: str = Form("basic"),
     price: float = Form(5.0),
     image_files: List[UploadFile] = File(...),
+    is_explicit: str = Form(None),
     _=Depends(require_login),
 ):
     db = SessionLocal()
@@ -174,30 +176,75 @@ async def upload_submit(
     errors = []
 
     try:
+        # Build category lookup: key -> Category object
+        all_cats = db.query(Category).filter(Category.is_active == True).all()
+        cat_map = {}
+        for c in all_cats:
+            name_lower = c.name.lower()
+            if "lingerie" in name_lower:
+                cat_map["lingerie"] = c
+            elif "lifestyle" in name_lower:
+                cat_map["lifestyle"] = c
+            elif "instagram" in name_lower:
+                cat_map["instagram"] = c
+            elif "exclusive" in name_lower or "private" in name_lower:
+                cat_map["exclusive"] = c
+        # Fallback category
+        fallback_cat = cat_map.get("exclusive") or (all_cats[0] if all_cats else None)
+
         # Auto-assign category for Instagram uploads
         if content_type == "instagram":
-            ig_cat = db.query(Category).filter(Category.name == "Instagram Posts").first()
+            ig_cat = cat_map.get("instagram")
             if ig_cat:
                 category_id = ig_cat.id
 
-        for image_file in image_files:
+        # Per-category counters for sequential titles
+        cat_counts = {}
+
+        for idx, image_file in enumerate(image_files):
             file_bytes = await image_file.read()
             if not file_bytes:
                 continue
 
             filename = image_file.filename or "upload"
-            title = filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").title()
             mimetype = image_file.content_type or mimetypes.guess_type(filename)[0] or "image/jpeg"
+
+            # AI classification: nudity + apparel/category detection
+            if is_explicit == "true":
+                flagged = True
+                auto_cat_id = category_id
+            else:
+                result = await classify_image(file_bytes, mimetype)
+                flagged = result.is_explicit
+                # Use AI-detected category if user didn't manually pick one,
+                # or if content_type is private (auto-sort into subcategories)
+                if content_type == "private":
+                    detected_cat = cat_map.get(result.category_key, fallback_cat)
+                    auto_cat_id = detected_cat.id if detected_cat else category_id
+                else:
+                    auto_cat_id = category_id
+
+            # Get category name for title
+            final_cat_id = auto_cat_id or category_id
+            if final_cat_id not in cat_counts:
+                cat_obj = db.query(Category).get(final_cat_id) if final_cat_id else None
+                cat_name = cat_obj.name if cat_obj else "Photo"
+                existing = db.query(Image).filter(Image.category_id == final_cat_id).count() if final_cat_id else 0
+                cat_counts[final_cat_id] = {"name": cat_name, "count": existing}
+
+            cat_counts[final_cat_id]["count"] += 1
+            title = f"{cat_counts[final_cat_id]['name']} #{cat_counts[final_cat_id]['count']}"
 
             image = Image(
                 title=title,
                 description="",
-                category_id=category_id,
+                category_id=final_cat_id,
                 tier=tier,
                 price=price,
                 file_data=file_bytes,
                 file_mimetype=mimetype,
                 content_type=content_type,
+                is_explicit=flagged,
             )
             db.add(image)
             uploaded += 1

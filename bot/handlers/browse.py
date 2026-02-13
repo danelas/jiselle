@@ -271,10 +271,10 @@ async def image_detail_callback(update: Update, context: ContextTypes.DEFAULT_TY
             f"💰 {original_str}**${price:.0f}**{discount_label}\n"
         )
 
-        has_free = user and user.free_unlocks > 0
+        has_free = user and (user.free_unlocks or 0) > 0
 
         keyboard = []
-        if has_free:
+        if has_free and not image.is_explicit:
             keyboard.append([
                 InlineKeyboardButton("🎁 Use Free Unlock", callback_data=f"free_{image.id}")
             ])
