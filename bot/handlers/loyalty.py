@@ -349,7 +349,7 @@ async def loyalty_pick_image_callback(update: Update, context: ContextTypes.DEFA
         if related:
             upsell_kb = [
                 [InlineKeyboardButton(
-                    f"🔥 {r.title} — ${r.price:.2f}",
+                    f"🔥 {r.title} — ${r.price:.0f}",
                     callback_data=f"img_{r.id}"
                 )]
                 for r in related

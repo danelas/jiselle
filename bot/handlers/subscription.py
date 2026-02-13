@@ -78,7 +78,7 @@ async def subscribe_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         for tier_key, tier in SUB_TIERS.items():
             text += (
-                f"{tier['emoji']} **{tier['name']}** — ${tier['price']:.2f}/mo\n"
+                f"{tier['emoji']} **{tier['name']}** — ${tier['price']:.0f}/mo\n"
             )
             for perk in tier["perks"]:
                 text += f"  • {perk}\n"
@@ -97,7 +97,7 @@ async def subscribe_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 label = "Upgrade" if active_sub else "Subscribe"
                 keyboard.append([
                     InlineKeyboardButton(
-                        f"{tier['emoji']} {label} {tier['name']} — ${tier['price']:.2f}/mo",
+                        f"{tier['emoji']} {label} {tier['name']} — ${tier['price']:.0f}/mo",
                         callback_data=f"sub_{tier_key}"
                     )
                 ])
@@ -171,7 +171,7 @@ async def subscribe_tier_callback(update: Update, context: ContextTypes.DEFAULT_
 
         await query.message.reply_text(
             f"💎 **{tier['emoji']} {tier['name']} VIP Subscription**\n\n"
-            f"💰 ${tier['price']:.2f} for 1 month\n\n"
+            f"💰 ${tier['price']:.0f} for 1 month\n\n"
             f"**Perks:**\n" +
             "\n".join(f"  • {p}" for p in tier["perks"]) +
             f"\n\nClick below to pay. Your VIP access activates **instantly**! ⚡",

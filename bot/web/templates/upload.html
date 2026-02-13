@@ -52,22 +52,23 @@
             </div>
         </div>
 
-        <!-- Category -->
-        <div>
+        <!-- Category (only shown for Private uploads) -->
+        <div id="category-section">
             <label class="block text-sm font-medium text-gray-300 mb-2">Category</label>
-            <select name="category_id" required
+            <select name="category_id" id="category-select"
                     class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-400/50 transition">
                 {% for cat in categories %}
-                <option value="{{ cat.id }}">{{ cat.emoji or '📁' }} {{ cat.name }}</option>
+                <option value="{{ cat.id }}" data-name="{{ cat.name }}">{{ cat.emoji or '📁' }} {{ cat.name }}</option>
                 {% endfor %}
             </select>
+            <p id="ig-cat-note" class="hidden text-green-400 text-xs mt-2">📸 Instagram images are automatically categorized.</p>
         </div>
 
         <div class="grid grid-cols-2 gap-6">
             <!-- Price -->
             <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">Price per image ($)</label>
-                <input type="number" name="price" value="4.99" step="0.01" min="0" required
+                <input type="number" name="price" value="5" step="1" min="0" required
                        class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-400/50 transition">
             </div>
 
@@ -157,7 +158,45 @@
             : `📤 Upload ${count} Images`;
     }
 
+    // Auto-switch category based on content type
+    const catSection = document.getElementById('category-section');
+    const catSelect = document.getElementById('category-select');
+    const igNote = document.getElementById('ig-cat-note');
+    const contentRadios = document.querySelectorAll('input[name="content_type"]');
+
+    contentRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            const opts = catSelect.options;
+            if (radio.value === 'instagram') {
+                // Hide category picker, show note
+                catSelect.disabled = true;
+                catSelect.style.opacity = '0.4';
+                igNote.classList.remove('hidden');
+                // Auto-select Instagram Posts
+                for (let i = 0; i < opts.length; i++) {
+                    if (opts[i].dataset.name === 'Instagram Posts') {
+                        catSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            } else {
+                // Show category picker, hide IG options
+                catSelect.disabled = false;
+                catSelect.style.opacity = '1';
+                igNote.classList.add('hidden');
+                // Select first non-Instagram category
+                for (let i = 0; i < opts.length; i++) {
+                    if (opts[i].dataset.name !== 'Instagram Posts') {
+                        catSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        });
+    });
+
     uploadForm.addEventListener('submit', () => {
+        catSelect.disabled = false; // re-enable so value is submitted
         uploadBtn.disabled = true;
         uploadBtn.textContent = '⏳ Uploading...';
     });

@@ -94,7 +94,7 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🛠 **Admin Dashboard**\n\n"
             f"👥 Users: **{total_users}**\n"
             f"📦 Orders: **{total_orders}**\n"
-            f"💰 Revenue: **${revenue:.2f}**\n"
+            f"💰 Revenue: **${revenue:.0f}**\n"
             f"🖼 Images: **{total_images}**\n"
             f"📁 Categories: **{total_categories}**\n"
         )
@@ -348,7 +348,7 @@ async def upload_image_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"✅ **Image uploaded successfully!**\n\n"
                 f"🆔 ID: {image.id}\n"
                 f"📝 Title: {image.title}\n"
-                f"💰 Price: ${image.price:.2f}\n"
+                f"💰 Price: ${image.price:.0f}\n"
                 f"🏷 Tier: {image.tier}\n"
                 f"📂 Type: {ctype_label}\n\n"
                 f"Upload more with /admin",
@@ -433,7 +433,7 @@ async def recent_orders_callback(update: Update, context: ContextTypes.DEFAULT_T
             }.get(o.status, "❓")
 
             text += (
-                f"{status_emoji} **${o.amount:.2f}** — {img_name}\n"
+                f"{status_emoji} **${o.amount:.0f}** — {img_name}\n"
                 f"   👤 @{username} | {o.created_at.strftime('%m/%d %H:%M')}\n"
             )
 
@@ -587,7 +587,7 @@ async def drip_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         keyboard = [
             [InlineKeyboardButton(
-                f"{img.title} (${img.price:.2f})",
+                f"{img.title} (${img.price:.0f})",
                 callback_data=f"drpimg_{img.id}"
             )]
             for img in images
@@ -725,7 +725,7 @@ async def admin_requests_callback(update: Update, context: ContextTypes.DEFAULT_
             username = user.username or user.first_name or str(user.telegram_id) if user else "Unknown"
             status_emoji = {"pending": "⏳", "accepted": "💰"}.get(req.status, "❓")
             desc_short = req.description[:50] + "..." if len(req.description) > 50 else req.description
-            price_str = f" — ${req.price:.2f}" if req.price else ""
+            price_str = f" — ${req.price:.0f}" if req.price else ""
 
             text += f"{status_emoji} **#{req.id}**{price_str} @{username}\n  _{desc_short}_\n\n"
 
@@ -810,7 +810,7 @@ async def admin_set_request_price(update: Update, context: ContextTypes.DEFAULT_
         if user:
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             kb = [[InlineKeyboardButton(
-                f"💳 Pay ${price:.2f}",
+                f"💳 Pay ${price:.0f}",
                 callback_data=f"pay_request_{req.id}"
             )]]
             try:
@@ -818,7 +818,7 @@ async def admin_set_request_price(update: Update, context: ContextTypes.DEFAULT_
                     chat_id=user.telegram_id,
                     text=(
                         f"✨ **Custom Request #{req.id} Accepted!**\n\n"
-                        f"💰 Price: **${price:.2f}**\n\n"
+                        f"💰 Price: **${price:.0f}**\n\n"
                         f"Tap below to pay. Once paid, your custom content will be created! 🎨"
                     ),
                     reply_markup=InlineKeyboardMarkup(kb),
@@ -828,7 +828,7 @@ async def admin_set_request_price(update: Update, context: ContextTypes.DEFAULT_
                 logger.warning(f"Failed to notify user of request acceptance: {e}")
 
         await update.message.reply_text(
-            f"✅ Request #{req_id} accepted at ${price:.2f}. User notified."
+            f"✅ Request #{req_id} accepted at ${price:.0f}. User notified."
         )
     finally:
         db.close()
@@ -994,7 +994,7 @@ async def ig_post_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         keyboard = [
             [InlineKeyboardButton(
-                f"📸 {img.title} (${img.price:.2f})",
+                f"📸 {img.title} (${img.price:.0f})",
                 callback_data=f"igpick_{img.id}"
             )]
             for img in ig_images

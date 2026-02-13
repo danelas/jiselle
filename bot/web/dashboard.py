@@ -163,7 +163,7 @@ async def upload_page(request: Request, _=Depends(require_login)):
 async def upload_submit(
     request: Request,
     content_type: str = Form(...),
-    category_id: int = Form(...),
+    category_id: int = Form(None),
     tier: str = Form("basic"),
     price: float = Form(5.0),
     image_files: List[UploadFile] = File(...),
@@ -174,6 +174,12 @@ async def upload_submit(
     errors = []
 
     try:
+        # Auto-assign category for Instagram uploads
+        if content_type == "instagram":
+            ig_cat = db.query(Category).filter(Category.name == "Instagram Posts").first()
+            if ig_cat:
+                category_id = ig_cat.id
+
         for image_file in image_files:
             file_bytes = await image_file.read()
             if not file_bytes:

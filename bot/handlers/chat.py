@@ -170,7 +170,7 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 # Send AI message + payment button
                 keyboard = [
                     [InlineKeyboardButton(
-                        f"💳 Unlock for ${payment['price']:.2f}",
+                        f"💳 Unlock for ${payment['price']:.0f}",
                         url=payment["approve_url"]
                     )],
                 ]

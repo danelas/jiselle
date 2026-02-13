@@ -105,7 +105,7 @@ async def deals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             discounted = round(original * (1 - sale.discount_percent / 100), 2)
             keyboard.append([
                 InlineKeyboardButton(
-                    f"🔥 {img.title} — ~${original:.2f}~ ${discounted:.2f}",
+                    f"🔥 {img.title} — ~${original:.0f}~ ${discounted:.0f}",
                     callback_data=f"img_{img.id}"
                 )
             ])
@@ -168,7 +168,7 @@ async def deals_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             discounted = round(original * (1 - sale.discount_percent / 100), 2)
             keyboard.append([
                 InlineKeyboardButton(
-                    f"🔥 {img.title} — ${discounted:.2f} (was ${original:.2f})",
+                    f"🔥 {img.title} — ${discounted:.0f} (was ${original:.0f})",
                     callback_data=f"img_{img.id}"
                 )
             ])

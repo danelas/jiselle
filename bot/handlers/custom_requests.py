@@ -139,7 +139,7 @@ async def confirm_request_callback(update: Update, context: ContextTypes.DEFAULT
                     f"👤 @{user.username or user.first_name or user.telegram_id}\n"
                     f"📝 {description}\n\n"
                     f"VIP Tier: {user.vip_tier}\n"
-                    f"Total Spent: ${user.total_spent:.2f}"
+                    f"Total Spent: ${user.total_spent:.0f}"
                 ),
                 reply_markup=InlineKeyboardMarkup(admin_keyboard),
                 parse_mode="Markdown"
@@ -205,14 +205,14 @@ async def my_requests_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         for req in requests:
             emoji = status_emoji.get(req.status, "❓")
             desc_short = req.description[:40] + "..." if len(req.description) > 40 else req.description
-            price_str = f" — ${req.price:.2f}" if req.price else ""
+            price_str = f" — ${req.price:.0f}" if req.price else ""
 
             text += f"{emoji} **#{req.id}**{price_str}\n  _{desc_short}_\n"
 
             if req.status == RequestStatus.ACCEPTED.value and req.price:
                 keyboard.append([
                     InlineKeyboardButton(
-                        f"💳 Pay #{req.id} — ${req.price:.2f}",
+                        f"💳 Pay #{req.id} — ${req.price:.0f}",
                         callback_data=f"pay_request_{req.id}"
                     )
                 ])
@@ -274,7 +274,7 @@ async def pay_request_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
         await query.message.reply_text(
             f"💳 **Pay for Custom Request #{req.id}**\n\n"
-            f"💰 ${req.price:.2f}\n\n"
+            f"💰 ${req.price:.0f}\n\n"
             f"Once paid, your custom content will be created and delivered! ⚡",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"

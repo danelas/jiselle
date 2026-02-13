@@ -3,7 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 from sqlalchemy.orm import Session
 from bot.models.database import SessionLocal
-from bot.models.schemas import Category, Image, User, Order, OrderStatus
+from bot.models.schemas import Category, Image, User, Order, OrderStatus, ContentType
 from bot.handlers.flash_sales import get_flash_price
 
 logger = logging.getLogger(__name__)
@@ -25,21 +25,29 @@ async def browse_categories_callback(update: Update, context: ContextTypes.DEFAU
             .all()
         )
 
-        if not categories:
+        # Only show categories that have private (purchasable) images
+        visible = []
+        for cat in categories:
+            img_count = db.query(Image).filter(
+                Image.category_id == cat.id,
+                Image.is_active == True,
+                Image.content_type == ContentType.PRIVATE.value,
+            ).count()
+            if img_count > 0:
+                visible.append((cat, img_count))
+
+        if not visible:
             await query.edit_message_text(
-                "No categories available yet. Check back soon! 💫",
+                "No categories available yet. Check back soon! \uD83D\uDCAB",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔙 Back", callback_data="back_to_menu")]
+                    [InlineKeyboardButton("\uD83D\uDD19 Back", callback_data="back_to_menu")]
                 ])
             )
             return
 
         keyboard = []
-        for cat in categories:
-            emoji = cat.emoji or "📁"
-            img_count = db.query(Image).filter(
-                Image.category_id == cat.id, Image.is_active == True
-            ).count()
+        for cat, img_count in visible:
+            emoji = cat.emoji or "\uD83D\uDCC1"
             keyboard.append([
                 InlineKeyboardButton(
                     f"{emoji} {cat.name} ({img_count})",
@@ -47,10 +55,10 @@ async def browse_categories_callback(update: Update, context: ContextTypes.DEFAU
                 )
             ])
 
-        keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="back_to_menu")])
+        keyboard.append([InlineKeyboardButton("\uD83D\uDD19 Back", callback_data="back_to_menu")])
 
         await query.edit_message_text(
-            "📂 **Choose a category:**",
+            "\uD83D\uDCC1 **Choose a category:**",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
@@ -69,16 +77,23 @@ async def browse_categories_command(update: Update, context: ContextTypes.DEFAUL
             .all()
         )
 
-        if not categories:
-            await update.message.reply_text("No categories available yet. Check back soon! 💫")
+        visible = []
+        for cat in categories:
+            img_count = db.query(Image).filter(
+                Image.category_id == cat.id,
+                Image.is_active == True,
+                Image.content_type == ContentType.PRIVATE.value,
+            ).count()
+            if img_count > 0:
+                visible.append((cat, img_count))
+
+        if not visible:
+            await update.message.reply_text("No categories available yet. Check back soon! \uD83D\uDCAB")
             return
 
         keyboard = []
-        for cat in categories:
-            emoji = cat.emoji or "📁"
-            img_count = db.query(Image).filter(
-                Image.category_id == cat.id, Image.is_active == True
-            ).count()
+        for cat, img_count in visible:
+            emoji = cat.emoji or "\uD83D\uDCC1"
             keyboard.append([
                 InlineKeyboardButton(
                     f"{emoji} {cat.name} ({img_count})",
@@ -156,9 +171,9 @@ async def category_images_callback(update: Update, context: ContextTypes.DEFAULT
             else:
                 sale_price, discount_pct, on_sale = get_flash_price(img, db)
                 if on_sale:
-                    status = f"~${img.price:.2f}~ ${sale_price:.2f} 🔥"
+                    status = f"~${img.price:.0f}~ ${sale_price:.0f} 🔥"
                 else:
-                    status = f"${img.price:.2f}"
+                    status = f"${img.price:.0f}"
             keyboard.append([
                 InlineKeyboardButton(
                     f"{'✅ ' if owned else ''}{img.title} — {status}",
@@ -249,11 +264,11 @@ async def image_detail_callback(update: Update, context: ContextTypes.DEFAULT_TY
             discount_label += " +20% VIP"
 
         # Show preview
-        original_str = f"~~${image.price:.2f}~~ " if on_sale else ""
+        original_str = f"~~${image.price:.0f}~~ " if on_sale else ""
         text = (
             f"🖼 **{image.title}**\n"
             f"{image.description or ''}\n\n"
-            f"💰 {original_str}**${price:.2f}**{discount_label}\n"
+            f"💰 {original_str}**${price:.0f}**{discount_label}\n"
         )
 
         has_free = user and user.free_unlocks > 0
@@ -264,7 +279,7 @@ async def image_detail_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 InlineKeyboardButton("🎁 Use Free Unlock", callback_data=f"free_{image.id}")
             ])
         keyboard.append([
-            InlineKeyboardButton(f"💳 Unlock for ${price:.2f}", callback_data=f"buy_{image.id}")
+            InlineKeyboardButton(f"💳 Unlock for ${price:.0f}", callback_data=f"buy_{image.id}")
         ])
         keyboard.append([
             InlineKeyboardButton("🔙 Back", callback_data=f"cat_{cat_id}_0")
@@ -306,7 +321,7 @@ async def browse_popular_callback(update: Update, context: ContextTypes.DEFAULT_
         for i, img in enumerate(images, 1):
             keyboard.append([
                 InlineKeyboardButton(
-                    f"#{i} {img.title} — ${img.price:.2f}",
+                    f"#{i} {img.title} — ${img.price:.0f}",
                     callback_data=f"img_{img.id}"
                 )
             ])
@@ -341,7 +356,7 @@ async def popular_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i, img in enumerate(images, 1):
             keyboard.append([
                 InlineKeyboardButton(
-                    f"#{i} {img.title} — ${img.price:.2f}",
+                    f"#{i} {img.title} — ${img.price:.0f}",
                     callback_data=f"img_{img.id}"
                 )
             ])

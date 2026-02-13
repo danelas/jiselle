@@ -119,7 +119,7 @@ async def buy_image_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.message.reply_text(
             f"💳 **Payment Ready!**\n\n"
             f"🖼 {image.title}\n"
-            f"💰 ${final_price:.2f}\n\n"
+            f"💰 ${final_price:.0f}\n\n"
             f"Click the button below to pay securely via PayPal.\n"
             f"Your image will be sent **instantly** after payment! ⚡",
             reply_markup=InlineKeyboardMarkup(keyboard),
@@ -133,21 +133,30 @@ async def buy_image_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def free_unlock_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Use a free unlock on an image."""
     query = update.callback_query
-    await query.answer()
+    await query.answer("Unlocking... 🎁")
 
-    img_id = int(query.data.split("_")[1])
     tg_user = update.effective_user
+
+    try:
+        img_id = int(query.data.split("_")[1])
+    except (IndexError, ValueError):
+        await query.message.reply_text("Something went wrong. Try again.")
+        return
 
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.telegram_id == tg_user.id).first()
         image = db.query(Image).get(img_id)
 
+        logger.info(f"Free unlock: user={user.id if user else None}, image={img_id}, "
+                     f"free_unlocks={user.free_unlocks if user else 'N/A'}")
+
         if not user or not image:
-            await query.edit_message_text("Something went wrong. Try /start again.")
+            await query.message.reply_text("Something went wrong. Try /start again.")
             return
 
-        if user.free_unlocks <= 0:
+        unlocks = user.free_unlocks or 0
+        if unlocks <= 0:
             await query.message.reply_text(
                 "❌ No free unlocks remaining.\n"
                 "💡 Refer friends to earn more! Use /referral"
@@ -201,7 +210,7 @@ async def free_unlock_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         if related:
             keyboard = [
                 [InlineKeyboardButton(
-                    f"🔥 {r.title} — ${r.price:.2f}",
+                    f"🔥 {r.title} — ${r.price:.0f}",
                     callback_data=f"img_{r.id}"
                 )]
                 for r in related
@@ -214,6 +223,12 @@ async def free_unlock_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 parse_mode="Markdown"
             )
 
+    except Exception as e:
+        logger.error(f"Free unlock error for user {tg_user.id}: {e}", exc_info=True)
+        try:
+            await query.message.reply_text("Something went wrong with the unlock. Try again! \uD83D\uDCAB")
+        except Exception:
+            pass
     finally:
         db.close()
 

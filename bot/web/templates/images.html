@@ -50,7 +50,7 @@
         <div class="p-4">
             <h3 class="font-medium text-sm truncate">{{ img.title }}</h3>
             <div class="flex items-center justify-between mt-2">
-                <span class="text-accent-400 font-semibold text-sm">${{ "%.2f"|format(img.price) }}</span>
+                <span class="text-accent-400 font-semibold text-sm">${{ "%.0f"|format(img.price) }}</span>
                 <span class="text-gray-600 text-xs">{{ img.tier }}</span>
             </div>
             {% if img.total_sales > 0 %}
