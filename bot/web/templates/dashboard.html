@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% set active_page = "home" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold">Dashboard</h1>
+    <p class="text-gray-500 mt-1">Overview of your content and activity</p>
+</div>
+
+<!-- Stats grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+    <div class="card rounded-xl p-6">
+        <p class="text-gray-500 text-sm">Total Images</p>
+        <p class="text-3xl font-bold mt-1">{{ total_images }}</p>
+    </div>
+    <div class="card rounded-xl p-6">
+        <p class="text-gray-500 text-sm">📸 Instagram Ready</p>
+        <p class="text-3xl font-bold mt-1 text-green-400">{{ ig_images }}</p>
+    </div>
+    <div class="card rounded-xl p-6">
+        <p class="text-gray-500 text-sm">🔒 Private</p>
+        <p class="text-3xl font-bold mt-1 text-red-400">{{ private_images }}</p>
+    </div>
+    <div class="card rounded-xl p-6">
+        <p class="text-gray-500 text-sm">📅 Scheduled Posts</p>
+        <p class="text-3xl font-bold mt-1 text-purple-400">{{ pending_posts }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+    <div class="card rounded-xl p-6">
+        <p class="text-gray-500 text-sm">Total Users</p>
+        <p class="text-3xl font-bold mt-1">{{ total_users }}</p>
+    </div>
+    <div class="card rounded-xl p-6">
+        <p class="text-gray-500 text-sm">Completed Orders</p>
+        <p class="text-3xl font-bold mt-1 text-yellow-400">{{ total_orders }}</p>
+    </div>
+</div>
+
+<!-- Quick actions -->
+<div class="flex gap-4 mb-10">
+    <a href="/dashboard/upload" class="bg-accent-400 hover:bg-accent-500 text-white px-6 py-3 rounded-lg font-medium transition">
+        📤 Upload Image
+    </a>
+    <a href="/dashboard/schedule" class="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg font-medium transition">
+        📅 Schedule Post
+    </a>
+</div>
+
+<!-- Recent scheduled posts -->
+{% if recent_posts %}
+<div class="mb-8">
+    <h2 class="text-lg font-semibold mb-4">Recent Scheduled Posts</h2>
+    <div class="card rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-white/5">
+                <tr>
+                    <th class="text-left px-6 py-3 text-gray-400 font-medium">Image</th>
+                    <th class="text-left px-6 py-3 text-gray-400 font-medium">Caption</th>
+                    <th class="text-left px-6 py-3 text-gray-400 font-medium">Scheduled</th>
+                    <th class="text-left px-6 py-3 text-gray-400 font-medium">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5">
+                {% for post in recent_posts %}
+                <tr>
+                    <td class="px-6 py-4">
+                        {% if post.image %}
+                            <span class="text-white">{{ post.image.title }}</span>
+                        {% else %}
+                            <span class="text-gray-500">Deleted</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-gray-400 max-w-xs truncate">{{ post.caption or '(no caption)' }}</td>
+                    <td class="px-6 py-4 text-gray-400">{{ post.scheduled_at.strftime('%b %d, %Y %I:%M %p') }}</td>
+                    <td class="px-6 py-4">
+                        {% if post.status == 'pending' %}
+                            <span class="bg-yellow-500/10 text-yellow-400 px-2.5 py-1 rounded-full text-xs font-medium">Pending</span>
+                        {% elif post.status == 'posted' %}
+                            <span class="bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full text-xs font-medium">Posted</span>
+                        {% elif post.status == 'failed' %}
+                            <span class="bg-red-500/10 text-red-400 px-2.5 py-1 rounded-full text-xs font-medium">Failed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

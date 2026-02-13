@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% set active_page = "upload" %}
+
+{% block title %}Upload Image{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold">Upload Image</h1>
+    <p class="text-gray-500 mt-1">Add a new image to your content library</p>
+</div>
+
+<div class="max-w-2xl">
+    <form method="POST" action="/dashboard/upload" enctype="multipart/form-data" class="space-y-6">
+
+        <!-- Image file -->
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Image File</label>
+            <div id="drop-zone"
+                 class="border-2 border-dashed border-white/10 rounded-xl p-10 text-center hover:border-accent-400/40 transition cursor-pointer">
+                <input type="file" name="image_file" accept="image/*" required id="file-input" class="hidden">
+                <div id="drop-text">
+                    <p class="text-gray-400 text-lg mb-1">📷 Drop image here or click to browse</p>
+                    <p class="text-gray-600 text-sm">JPG, PNG, WebP — Max 20MB</p>
+                </div>
+                <div id="file-preview" class="hidden">
+                    <img id="preview-img" class="max-h-48 mx-auto rounded-lg mb-2">
+                    <p id="file-name" class="text-gray-400 text-sm"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Type (critical) -->
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">⚠️ Content Type</label>
+            <div class="grid grid-cols-2 gap-4">
+                <label class="card rounded-xl p-4 cursor-pointer has-[:checked]:border-green-500/50 has-[:checked]:bg-green-500/5 transition">
+                    <input type="radio" name="content_type" value="instagram" class="sr-only" required>
+                    <div class="text-center">
+                        <span class="text-2xl">📸</span>
+                        <p class="font-medium text-sm mt-2">Instagram (SFW)</p>
+                        <p class="text-gray-500 text-xs mt-1">Safe for public posting</p>
+                    </div>
+                </label>
+                <label class="card rounded-xl p-4 cursor-pointer has-[:checked]:border-red-500/50 has-[:checked]:bg-red-500/5 transition">
+                    <input type="radio" name="content_type" value="private" class="sr-only" required>
+                    <div class="text-center">
+                        <span class="text-2xl">🔒</span>
+                        <p class="font-medium text-sm mt-2">Private (NSFW)</p>
+                        <p class="text-gray-500 text-xs mt-1">Telegram only — NEVER public</p>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Title -->
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Title</label>
+            <input type="text" name="title" required placeholder="e.g. Beach Sunset"
+                   class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-accent-400/50 focus:ring-1 focus:ring-accent-400/30 transition">
+        </div>
+
+        <!-- Description -->
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Description <span class="text-gray-600">(optional)</span></label>
+            <textarea name="description" rows="3" placeholder="Short description..."
+                      class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-accent-400/50 focus:ring-1 focus:ring-accent-400/30 transition resize-none"></textarea>
+        </div>
+
+        <!-- Category -->
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Category</label>
+            <select name="category_id" required
+                    class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-400/50 transition">
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.emoji or '📁' }} {{ cat.name }}</option>
+                {% endfor %}
+                {% if not categories %}
+                <option disabled>No categories — create one via Telegram /admin first</option>
+                {% endif %}
+            </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6">
+            <!-- Price -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Price ($)</label>
+                <input type="number" name="price" value="5.00" step="0.01" min="0" required
+                       class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-400/50 transition">
+            </div>
+
+            <!-- Tier -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Tier</label>
+                <select name="tier"
+                        class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-400/50 transition">
+                    <option value="free">Free</option>
+                    <option value="basic" selected>Basic</option>
+                    <option value="premium">Premium</option>
+                    <option value="vip">VIP</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit"
+                class="w-full bg-accent-400 hover:bg-accent-500 text-white font-semibold py-3.5 rounded-lg transition text-lg">
+            📤 Upload Image
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const dropText = document.getElementById('drop-text');
+    const filePreview = document.getElementById('file-preview');
+    const previewImg = document.getElementById('preview-img');
+    const fileName = document.getElementById('file-name');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-accent-400/60');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('border-accent-400/60');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-accent-400/60');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            showPreview(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) showPreview(fileInput.files[0]);
+    });
+
+    function showPreview(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewImg.src = e.target.result;
+            fileName.textContent = file.name;
+            dropText.classList.add('hidden');
+            filePreview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+</script>
+{% endblock %}

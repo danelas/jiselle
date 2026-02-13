@@ -8,7 +8,7 @@ from telegram.ext import Application, ApplicationBuilder
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import uvicorn
 
-from bot.config import TELEGRAM_BOT_TOKEN, BASE_URL, PORT, PAYPAL_WEBHOOK_ID
+from bot.config import TELEGRAM_BOT_TOKEN, BASE_URL, PORT, PAYPAL_WEBHOOK_ID, ADMIN_PASSWORD
 from bot.models.database import init_db
 from bot.handlers.start import get_start_handlers
 from bot.handlers.browse import get_browse_handlers
@@ -21,6 +21,7 @@ from bot.handlers.loyalty import get_loyalty_handlers
 from bot.services.paypal import verify_webhook_signature, capture_order as paypal_capture
 from bot.services.delivery import deliver_image, complete_order
 from bot.services.drip import process_drip_content, check_flash_sales, check_expiring_subscriptions
+from bot.web.dashboard import router as dashboard_router, process_scheduled_posts, register_auth_exception_handler
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -99,8 +100,12 @@ async def lifespan(app: FastAPI):
         lambda: asyncio.ensure_future(check_expiring_subscriptions(tg_app.bot)),
         "interval", hours=6, id="sub_expiry"
     )
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(process_scheduled_posts()),
+        "interval", minutes=1, id="ig_scheduled_posts"
+    )
     scheduler.start()
-    logger.info("Scheduler started (drip: 5min, flash: 2min, subs: 6hr)")
+    logger.info("Scheduler started (drip: 5min, flash: 2min, subs: 6hr, ig: 1min)")
 
     yield
 
@@ -113,6 +118,14 @@ async def lifespan(app: FastAPI):
 
 # FastAPI app
 web_app = FastAPI(lifespan=lifespan)
+
+# Session middleware for dashboard auth
+from starlette.middleware.sessions import SessionMiddleware
+web_app.add_middleware(SessionMiddleware, secret_key=ADMIN_PASSWORD)
+
+# Mount dashboard
+web_app.include_router(dashboard_router)
+register_auth_exception_handler(web_app)
 
 
 # ─── Telegram Webhook Endpoint ─────────────────────────
@@ -326,7 +339,7 @@ async def paypal_cancel():
 
 @web_app.get("/")
 async def health_check():
-    return {"status": "ok", "bot": "running"}
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 # ─── Entry Point ───────────────────────────────────────

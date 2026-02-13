@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% set active_page = "schedule" %}
+
+{% block title %}Schedule Posts{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold">Schedule Instagram Posts</h1>
+        <p class="text-gray-500 mt-1">Plan and automate your Instagram content</p>
+    </div>
+</div>
+
+{% if not has_ig_creds %}
+<div class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-6 mb-8">
+    <h3 class="text-yellow-400 font-semibold mb-1">⚠️ Instagram not configured</h3>
+    <p class="text-gray-400 text-sm">Set <code class="bg-white/10 px-1.5 py-0.5 rounded text-xs">INSTAGRAM_USER_ID</code> and <code class="bg-white/10 px-1.5 py-0.5 rounded text-xs">INSTAGRAM_ACCESS_TOKEN</code> in your environment variables to enable posting.</p>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Schedule form -->
+    <div class="lg:col-span-1">
+        <div class="card rounded-xl p-6">
+            <h2 class="text-lg font-semibold mb-4">New Scheduled Post</h2>
+
+            {% if ig_images %}
+            <form method="POST" action="/dashboard/schedule" class="space-y-5">
+                <!-- Image select -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Image</label>
+                    <select name="image_id" required id="image-select"
+                            class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-400/50 transition">
+                        {% for img in ig_images %}
+                        <option value="{{ img.id }}" data-url="{{ img.cloudinary_url }}">📸 {{ img.title }}</option>
+                        {% endfor %}
+                    </select>
+                    <!-- Image preview -->
+                    <div class="mt-3">
+                        <img id="schedule-preview" src="{{ ig_images[0].cloudinary_url if ig_images else '' }}"
+                             class="w-full aspect-square object-cover rounded-lg">
+                    </div>
+                </div>
+
+                <!-- Caption -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Caption</label>
+                    <textarea name="caption" rows="4" placeholder="Write your Instagram caption... #hashtags"
+                              class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-accent-400/50 transition resize-none"></textarea>
+                </div>
+
+                <!-- Date & Time -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Date</label>
+                        <input type="date" name="scheduled_date" required
+                               class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-400/50 transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Time (UTC)</label>
+                        <input type="time" name="scheduled_time" required
+                               class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-400/50 transition">
+                    </div>
+                </div>
+
+                <button type="submit" {% if not has_ig_creds %}disabled{% endif %}
+                        class="w-full bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition">
+                    📅 Schedule Post
+                </button>
+            </form>
+            {% else %}
+            <div class="text-center py-8">
+                <p class="text-gray-500 mb-3">No Instagram-safe images</p>
+                <a href="/dashboard/upload" class="text-accent-400 hover:underline text-sm">Upload one first →</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Scheduled posts list -->
+    <div class="lg:col-span-2">
+        <div class="card rounded-xl overflow-hidden">
+            <div class="px-6 py-4 bg-white/5 border-b border-white/5">
+                <h2 class="font-semibold">Scheduled Posts</h2>
+            </div>
+
+            {% if scheduled %}
+            <div class="divide-y divide-white/5">
+                {% for post in scheduled %}
+                <div class="px-6 py-4 flex items-center gap-4">
+                    <!-- Thumbnail -->
+                    {% if post.image %}
+                    <img src="{{ post.image.cloudinary_url }}" class="w-16 h-16 rounded-lg object-cover flex-shrink-0">
+                    {% else %}
+                    <div class="w-16 h-16 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
+                        <span class="text-gray-600">?</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Info -->
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium text-sm truncate">
+                            {{ post.image.title if post.image else 'Deleted image' }}
+                        </p>
+                        <p class="text-gray-500 text-xs truncate mt-0.5">{{ post.caption or '(no caption)' }}</p>
+                        <p class="text-gray-600 text-xs mt-1">
+                            📅 {{ post.scheduled_at.strftime('%b %d, %Y at %I:%M %p') }} UTC
+                        </p>
+                    </div>
+
+                    <!-- Status + actions -->
+                    <div class="flex items-center gap-3 flex-shrink-0">
+                        {% if post.status == 'pending' %}
+                            <span class="bg-yellow-500/10 text-yellow-400 px-2.5 py-1 rounded-full text-xs font-medium">Pending</span>
+                            <div class="flex gap-1">
+                                <form method="POST" action="/dashboard/schedule/{{ post.id }}/post-now" class="inline">
+                                    <button type="submit" class="bg-green-500/10 hover:bg-green-500/20 text-green-400 px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                                            title="Post now">
+                                        ▶️ Now
+                                    </button>
+                                </form>
+                                <form method="POST" action="/dashboard/schedule/{{ post.id }}/delete" class="inline">
+                                    <button type="submit" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                                            onclick="return confirm('Delete this scheduled post?')"
+                                            title="Delete">
+                                        ✕
+                                    </button>
+                                </form>
+                            </div>
+                        {% elif post.status == 'posted' %}
+                            <span class="bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full text-xs font-medium">✅ Posted</span>
+                        {% elif post.status == 'failed' %}
+                            <span class="bg-red-500/10 text-red-400 px-2.5 py-1 rounded-full text-xs font-medium" title="{{ post.error_message or '' }}">❌ Failed</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12">
+                <p class="text-gray-500">No scheduled posts yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const imageSelect = document.getElementById('image-select');
+    const preview = document.getElementById('schedule-preview');
+
+    if (imageSelect && preview) {
+        imageSelect.addEventListener('change', () => {
+            const selected = imageSelect.options[imageSelect.selectedIndex];
+            const url = selected.getAttribute('data-url');
+            if (url) preview.src = url;
+        });
+    }
+</script>
+{% endblock %}

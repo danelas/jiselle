@@ -199,3 +199,19 @@ class LoyaltyRedemption(Base):
     reward_type = Column(String(50), nullable=False)  # "image_unlock", "discount_10", "discount_25"
     image_id = Column(Integer, ForeignKey("images.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class ScheduledPost(Base):
+    __tablename__ = "scheduled_posts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
+    caption = Column(Text, nullable=True)
+    scheduled_at = Column(DateTime, nullable=False)
+    status = Column(String(20), default="pending")  # pending, posted, failed
+    ig_media_id = Column(String(255), nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    posted_at = Column(DateTime, nullable=True)
+
+    image = relationship("Image")

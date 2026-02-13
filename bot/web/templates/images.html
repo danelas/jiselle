@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% set active_page = "images" %}
+
+{% block title %}Images{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold">Images</h1>
+        <p class="text-gray-500 mt-1">{{ images|length }} images</p>
+    </div>
+    <a href="/dashboard/upload" class="bg-accent-400 hover:bg-accent-500 text-white px-5 py-2.5 rounded-lg font-medium transition text-sm">
+        📤 Upload New
+    </a>
+</div>
+
+<!-- Filter tabs -->
+<div class="flex gap-2 mb-8">
+    <a href="/dashboard/images?content_type=all"
+       class="px-4 py-2 rounded-lg text-sm font-medium transition {% if current_filter == 'all' %}bg-white/10 text-white{% else %}text-gray-500 hover:text-white hover:bg-white/5{% endif %}">
+        All
+    </a>
+    <a href="/dashboard/images?content_type=instagram"
+       class="px-4 py-2 rounded-lg text-sm font-medium transition {% if current_filter == 'instagram' %}bg-green-500/10 text-green-400 border border-green-500/30{% else %}text-gray-500 hover:text-white hover:bg-white/5{% endif %}">
+        📸 Instagram
+    </a>
+    <a href="/dashboard/images?content_type=private"
+       class="px-4 py-2 rounded-lg text-sm font-medium transition {% if current_filter == 'private' %}bg-red-500/10 text-red-400 border border-red-500/30{% else %}text-gray-500 hover:text-white hover:bg-white/5{% endif %}">
+        🔒 Private
+    </a>
+</div>
+
+{% if images %}
+<!-- Image grid -->
+<div class="img-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+    {% for img in images %}
+    <div class="card rounded-xl overflow-hidden group">
+        <div class="aspect-square bg-dark-700 relative">
+            <img src="{{ img.cloudinary_url }}" alt="{{ img.title }}"
+                 class="w-full h-full object-cover" loading="lazy">
+            <!-- Content type badge -->
+            <div class="absolute top-2 right-2">
+                {% if img.content_type == 'instagram' %}
+                    <span class="bg-green-500/90 text-white text-xs px-2 py-1 rounded-full font-medium">📸 IG</span>
+                {% else %}
+                    <span class="bg-red-500/90 text-white text-xs px-2 py-1 rounded-full font-medium">🔒</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="p-4">
+            <h3 class="font-medium text-sm truncate">{{ img.title }}</h3>
+            <div class="flex items-center justify-between mt-2">
+                <span class="text-accent-400 font-semibold text-sm">${{ "%.2f"|format(img.price) }}</span>
+                <span class="text-gray-600 text-xs">{{ img.tier }}</span>
+            </div>
+            {% if img.total_sales > 0 %}
+            <p class="text-gray-600 text-xs mt-1">{{ img.total_sales }} sales</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-20">
+    <p class="text-gray-500 text-lg mb-4">No images yet</p>
+    <a href="/dashboard/upload" class="bg-accent-400 hover:bg-accent-500 text-white px-6 py-3 rounded-lg font-medium transition">
+        Upload your first image
+    </a>
+</div>
+{% endif %}
+{% endblock %}
