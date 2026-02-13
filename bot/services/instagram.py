@@ -32,6 +32,28 @@ def _assert_safe_for_instagram(image: Image) -> None:
             f"Only content_type='instagram' can be posted publicly. "
             f"This image is in the PRIVATE folder and must NEVER be published."
         )
+    if image.is_explicit:
+        raise InstagramSafetyError(
+            f"BLOCKED: Image #{image.id} ('{image.title}') is flagged as explicit. "
+            f"Explicit content must NEVER be posted to Instagram."
+        )
+
+
+async def _ai_verify_safe_for_instagram(image: Image) -> None:
+    """AI Vision safety check — scans actual image content before posting.
+    This catches images that were mislabeled as 'instagram' but contain NSFW content."""
+    if not image.file_data:
+        logger.warning(f"Image #{image.id} has no file_data — skipping AI safety check")
+        return
+
+    from bot.services.nudity_check import classify_image
+    result = await classify_image(image.file_data, image.file_mimetype or "image/jpeg")
+
+    if result.is_explicit:
+        raise InstagramSafetyError(
+            f"AI BLOCKED: Image #{image.id} ('{image.title}') was detected as explicit by AI vision. "
+            f"This image must NEVER be posted to Instagram."
+        )
 
 
 def get_instagram_ready_images(limit: int = 20) -> list:
@@ -91,8 +113,9 @@ async def post_to_instagram(
     Returns:
         dict with 'creation_id' and 'media_id' on success
     """
-    # ── SAFETY GUARD ── This MUST run before any posting logic
-    _assert_safe_for_instagram(image)
+    # ── SAFETY GUARDS ── These MUST run before any posting logic
+    _assert_safe_for_instagram(image)        # metadata check
+    await _ai_verify_safe_for_instagram(image)  # AI vision scan of actual pixels
 
     api_base = "https://graph.facebook.com/v18.0"
 
