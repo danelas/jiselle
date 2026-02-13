@@ -1,16 +1,105 @@
 """
 Telegram handler for AI chat powered by OpenAI.
 Catches all text messages that aren't commands or handled by other handlers.
+When AI detects purchase intent, creates a PayPal payment link and sends it.
 """
 
 import logging
-from telegram import Update
+import datetime
+import random
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, MessageHandler, CommandHandler, filters
 
-from bot.services.openai_chat import chat, clear_history
+from bot.services.openai_chat import (
+    chat, clear_history, ContentRequest, get_post_offer_reply, get_last_tool_call_id,
+)
 from bot.config import OPENAI_API_KEY
+from bot.models.database import SessionLocal
+from bot.models.schemas import User, Image, Order, OrderStatus, ContentType
+from bot.services import paypal
 
 logger = logging.getLogger(__name__)
+
+
+async def _find_image_for_user(telegram_id: int):
+    """Pick a random private image the user hasn't purchased yet."""
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.telegram_id == telegram_id).first()
+        if not user:
+            return None, None, db
+
+        # Get IDs of images user already owns
+        owned_ids = [
+            o.image_id for o in
+            db.query(Order)
+            .filter(Order.user_id == user.id, Order.status == OrderStatus.COMPLETED.value)
+            .all()
+        ]
+
+        # Find private images not yet owned
+        q = db.query(Image).filter(
+            Image.content_type == ContentType.PRIVATE.value,
+            Image.is_active == True,
+        )
+        if owned_ids:
+            q = q.filter(~Image.id.in_(owned_ids))
+
+        available = q.all()
+
+        if not available:
+            # Fallback: try any active image not owned
+            available = db.query(Image).filter(
+                Image.is_active == True,
+                ~Image.id.in_(owned_ids) if owned_ids else True,
+            ).all()
+
+        if not available:
+            return None, user, db
+
+        image = random.choice(available)
+        return image, user, db
+    except Exception:
+        db.close()
+        raise
+
+
+async def _create_payment_for_chat(user: User, image: Image, db) -> dict:
+    """Create an Order + PayPal payment link for an image."""
+    # Calculate price (apply VIP discount)
+    from bot.handlers.purchase import _get_user_discount
+    from bot.handlers.flash_sales import get_flash_price
+
+    sale_price, _, _ = get_flash_price(image, db)
+    discount = _get_user_discount(user)
+    final_price = round(sale_price * discount, 2)
+
+    # Create internal order
+    order = Order(
+        user_id=user.id,
+        image_id=image.id,
+        amount=final_price,
+        status=OrderStatus.PENDING.value,
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+
+    # Create PayPal order
+    pp_result = await paypal.create_order(
+        amount=final_price,
+        description=f"Unlock: {image.title}",
+        custom_id=str(order.id),
+    )
+
+    order.paypal_order_id = pp_result["order_id"]
+    db.commit()
+
+    return {
+        "approve_url": pp_result["approve_url"],
+        "price": final_price,
+        "order_id": order.id,
+    }
 
 
 async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -24,19 +113,73 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
-    user = update.effective_user
-    user_name = user.first_name or user.username or ""
+    tg_user = update.effective_user
+    user_name = tg_user.first_name or tg_user.username or ""
 
     # Show typing indicator
     await update.message.chat.send_action("typing")
 
-    reply = await chat(
-        user_id=user.id,
+    result = await chat(
+        user_id=tg_user.id,
         user_message=update.message.text,
         user_name=user_name,
     )
 
-    await update.message.reply_text(reply)
+    # Normal text reply
+    if isinstance(result, str):
+        await update.message.reply_text(result)
+        return
+
+    # AI triggered purchase intent
+    if isinstance(result, ContentRequest):
+        image, user, db = await _find_image_for_user(tg_user.id)
+        try:
+            if not image:
+                # No images available — reply naturally
+                tool_call_id = get_last_tool_call_id(tg_user.id)
+                reply = await get_post_offer_reply(
+                    tg_user.id, tool_call_id, "nothing available", 0, user_name
+                )
+                await update.message.reply_text(
+                    reply or "I'm putting together something new just for you… check back soon 💋"
+                )
+                return
+
+            if not user:
+                await update.message.reply_text("Send /start first so I know who you are 💋")
+                return
+
+            # Create payment
+            try:
+                payment = await _create_payment_for_chat(user, image, db)
+            except Exception as e:
+                logger.error(f"Payment creation failed in chat: {e}")
+                await update.message.reply_text(
+                    "Something went wrong on my end… try again in a sec? 💭"
+                )
+                return
+
+            # Get AI's natural response about the offer
+            tool_call_id = get_last_tool_call_id(tg_user.id)
+            ai_reply = await get_post_offer_reply(
+                tg_user.id, tool_call_id, image.title, payment["price"], user_name
+            )
+
+            # Send AI message + payment button
+            keyboard = [
+                [InlineKeyboardButton(
+                    f"💳 Unlock for ${payment['price']:.2f}",
+                    url=payment["approve_url"]
+                )],
+            ]
+
+            await update.message.reply_text(
+                ai_reply,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+
+        finally:
+            db.close()
 
 
 async def reset_chat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
