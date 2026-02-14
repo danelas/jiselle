@@ -219,7 +219,11 @@ async def upload_submit(
                 # Use AI-detected category if user didn't manually pick one,
                 # or if content_type is private (auto-sort into subcategories)
                 if content_type == "private":
-                    detected_cat = cat_map.get(result.category_key, fallback_cat)
+                    # Never put private uploads into Instagram category
+                    cat_key = result.category_key
+                    if cat_key == "instagram":
+                        cat_key = "lifestyle"  # SFW private → lifestyle
+                    detected_cat = cat_map.get(cat_key, fallback_cat)
                     auto_cat_id = detected_cat.id if detected_cat else category_id
                 else:
                     auto_cat_id = category_id

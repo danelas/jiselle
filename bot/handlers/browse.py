@@ -26,8 +26,11 @@ async def browse_categories_callback(update: Update, context: ContextTypes.DEFAU
         )
 
         # Only show categories that have private (purchasable) images
+        # NEVER show Instagram Posts in Telegram — it's dashboard-only
         visible = []
         for cat in categories:
+            if "instagram" in cat.name.lower():
+                continue
             img_count = db.query(Image).filter(
                 Image.category_id == cat.id,
                 Image.is_active == True,
@@ -79,6 +82,8 @@ async def browse_categories_command(update: Update, context: ContextTypes.DEFAUL
 
         visible = []
         for cat in categories:
+            if "instagram" in cat.name.lower():
+                continue
             img_count = db.query(Image).filter(
                 Image.category_id == cat.id,
                 Image.is_active == True,
