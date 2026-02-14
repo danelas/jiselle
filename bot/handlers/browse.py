@@ -41,16 +41,16 @@ async def browse_categories_callback(update: Update, context: ContextTypes.DEFAU
 
         if not visible:
             await query.edit_message_text(
-                "No categories available yet. Check back soon! \uD83D\uDCAB",
+                "No categories available yet. Check back soon! 💫",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("\uD83D\uDD19 Back", callback_data="back_to_menu")]
+                    [InlineKeyboardButton("🔙 Back", callback_data="back_to_menu")]
                 ])
             )
             return
 
         keyboard = []
         for cat, img_count in visible:
-            emoji = cat.emoji or "\uD83D\uDCC1"
+            emoji = cat.emoji or "📁"
             keyboard.append([
                 InlineKeyboardButton(
                     f"{emoji} {cat.name} ({img_count})",
@@ -58,10 +58,10 @@ async def browse_categories_callback(update: Update, context: ContextTypes.DEFAU
                 )
             ])
 
-        keyboard.append([InlineKeyboardButton("\uD83D\uDD19 Back", callback_data="back_to_menu")])
+        keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="back_to_menu")])
 
         await query.edit_message_text(
-            "\uD83D\uDCC1 **Choose a category:**",
+            "📁 **Choose a category:**",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
@@ -93,12 +93,12 @@ async def browse_categories_command(update: Update, context: ContextTypes.DEFAUL
                 visible.append((cat, img_count))
 
         if not visible:
-            await update.message.reply_text("No categories available yet. Check back soon! \uD83D\uDCAB")
+            await update.message.reply_text("No categories available yet. Check back soon! 💫")
             return
 
         keyboard = []
         for cat, img_count in visible:
-            emoji = cat.emoji or "\uD83D\uDCC1"
+            emoji = cat.emoji or "📁"
             keyboard.append([
                 InlineKeyboardButton(
                     f"{emoji} {cat.name} ({img_count})",

@@ -242,7 +242,7 @@ async def free_unlock_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         logger.error(f"Free unlock error for user {tg_user.id}: {e}", exc_info=True)
         try:
-            await query.message.reply_text("Something went wrong with the unlock. Try again! \uD83D\uDCAB")
+            await query.message.reply_text("Something went wrong with the unlock. Try again! 💫")
         except Exception:
             pass
     finally:
