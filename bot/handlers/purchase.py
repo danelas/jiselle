@@ -65,7 +65,7 @@ async def buy_image_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             .first()
         )
         if existing:
-            photo_source = image.file_data if image.file_data else image.cloudinary_url
+            photo_source = bytes(image.file_data) if image.file_data else image.cloudinary_url
             await query.message.reply_photo(
                 photo=photo_source,
                 caption=f"✅ You already own **{image.title}**! Here it is:",
@@ -76,7 +76,7 @@ async def buy_image_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Calculate price with flash sale + VIP discount
         sale_price, _, _ = get_flash_price(image, db)
         discount = _get_user_discount(user)
-        final_price = round(sale_price * discount, 2)
+        final_price = round(sale_price * discount)
 
         # Create internal order
         order = Order(
@@ -164,7 +164,7 @@ async def free_unlock_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             return
 
         # Block free unlock on explicit/nude content
-        if image.is_explicit:
+        if getattr(image, 'is_explicit', False):
             await query.message.reply_text(
                 "🔞 This content is exclusive — free unlocks can't be used here.\n"
                 "Use 💳 to unlock it!"
@@ -193,7 +193,15 @@ async def free_unlock_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         db.commit()
 
         # Send the full image
-        photo_source = image.file_data if image.file_data else image.cloudinary_url
+        if image.file_data:
+            photo_source = bytes(image.file_data)
+        elif image.cloudinary_url:
+            photo_source = image.cloudinary_url
+        else:
+            await query.message.reply_text("Image data not found. Contact admin.")
+            return
+
+        logger.info(f"Sending free unlock image {img_id}, data_type={type(photo_source).__name__}, size={len(photo_source) if isinstance(photo_source, bytes) else 'url'}")
         await query.message.reply_photo(
             photo=photo_source,
             caption=(
@@ -318,7 +326,7 @@ async def resend_image_callback(update: Update, context: ContextTypes.DEFAULT_TY
             await query.message.reply_text("❌ You don't own this image.")
             return
 
-        photo_source = image.file_data if image.file_data else image.cloudinary_url
+        photo_source = bytes(image.file_data) if image.file_data else image.cloudinary_url
         await query.message.reply_photo(
             photo=photo_source,
             caption=f"📸 **{image.title}**",

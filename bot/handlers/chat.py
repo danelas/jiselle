@@ -76,7 +76,7 @@ async def _create_payment_for_chat(user: User, image: Image, db) -> dict:
 
     sale_price, _, _ = get_flash_price(image, db)
     discount = _get_user_discount(user)
-    final_price = round(sale_price * discount, 2)
+    final_price = round(sale_price * discount)
 
     # Create internal order
     order = Order(
@@ -164,7 +164,7 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 # Get AI's natural response about the offer
                 tool_call_id = get_last_tool_call_id(tg_user.id)
                 ai_reply = await get_post_offer_reply(
-                    tg_user.id, tool_call_id, image.title, payment["price"], user_name
+                    tg_user.id, tool_call_id, image.title, int(payment["price"]), user_name
                 )
 
                 # Send AI message + payment button

@@ -90,7 +90,7 @@ async def process_drip_content(bot):
                                 callback_data=f"img_{image.id}"
                             )
                         ]]
-                        photo_src = image.file_data if image.file_data else (image.preview_url or image.cloudinary_url)
+                        photo_src = bytes(image.file_data) if image.file_data else (image.preview_url or image.cloudinary_url)
                         await bot.send_photo(
                             chat_id=user.telegram_id,
                             photo=photo_src,
@@ -100,7 +100,7 @@ async def process_drip_content(bot):
                         )
                     else:
                         # Paid tier drip: send full image as perk
-                        photo_src = image.file_data if image.file_data else image.cloudinary_url
+                        photo_src = bytes(image.file_data) if image.file_data else image.cloudinary_url
                         await bot.send_photo(
                             chat_id=user.telegram_id,
                             photo=photo_src,

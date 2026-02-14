@@ -28,7 +28,7 @@ async def deliver_image(bot, order_id: int):
             return False
 
         # Send the full image (from DB bytes or legacy cloudinary URL)
-        photo_source = image.file_data if image.file_data else image.cloudinary_url
+        photo_source = bytes(image.file_data) if image.file_data else image.cloudinary_url
         if not photo_source:
             logger.error(f"No image data for image {image.id}")
             return False
