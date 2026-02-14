@@ -168,6 +168,44 @@ async def back_to_menu_callback(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
 
+async def claim_free_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Redirect to browse so user can pick their free image."""
+    query = update.callback_query
+    await query.answer()
+
+    tg_user = update.effective_user
+    db = SessionLocal()
+    try:
+        user = _get_or_create_user(db, tg_user.id)
+        free_count = user.free_unlocks or 0
+    finally:
+        db.close()
+
+    if free_count <= 0:
+        await query.edit_message_text(
+            "You've already used your free unlock! \n\n"
+            "💡 Refer friends to earn more: /referral\n"
+            "Or browse my collection to find something you love 💋",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🖼 Browse Collection", callback_data="browse_categories")],
+                [InlineKeyboardButton("🔙 Back to Menu", callback_data="back_to_menu")],
+            ]),
+            parse_mode="Markdown"
+        )
+        return
+
+    await query.edit_message_text(
+        f"🎁 **You have {free_count} free unlock{'s' if free_count > 1 else ''}!**\n\n"
+        f"Browse my categories and tap **🎁 Use Free Unlock** on any basic image.\n"
+        f"Pick your favorite — it's on me 💋",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🖼 Browse & Choose", callback_data="browse_categories")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="back_to_menu")],
+        ]),
+        parse_mode="Markdown"
+    )
+
+
 async def start_custom_request_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Redirect to /request flow via inline button."""
     query = update.callback_query
@@ -190,4 +228,5 @@ def get_start_handlers():
         CallbackQueryHandler(vip_info_callback, pattern="^vip_info$"),
         CallbackQueryHandler(back_to_menu_callback, pattern="^back_to_menu$"),
         CallbackQueryHandler(start_custom_request_callback, pattern="^start_custom_request$"),
+        CallbackQueryHandler(claim_free_callback, pattern="^claim_free$"),
     ]

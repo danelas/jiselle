@@ -166,22 +166,30 @@ async def category_images_callback(update: Update, context: ContextTypes.DEFAULT
             )
             owned_ids = {o[0] for o in owned_orders}
 
-        text = f"{category.emoji or '📁'} **{category.name}**\n\n"
+        cat_emoji = category.emoji or "📁"
+        text = f"{cat_emoji} **{category.name}**\n\n"
+
+        # Short teaser words per image for nicer browse labels
+        _TEASERS = ["Peek", "Glimpse", "Tease", "Reveal", "Moment", "Vibe", "Scene", "Shot", "Look", "View"]
 
         keyboard = []
-        for img in images:
+        for idx, img in enumerate(images):
             owned = img.id in owned_ids
+            # Use short teaser label instead of full title
+            teaser = _TEASERS[idx % len(_TEASERS)]
+            label = f"{cat_emoji} {teaser} {page * ITEMS_PER_PAGE + idx + 1}"
+
             if owned:
-                status = "✅"
+                btn_text = f"✅ {label}"
             else:
                 sale_price, discount_pct, on_sale = get_flash_price(img, db)
                 if on_sale:
-                    status = f"~${img.price:.0f}~ ${sale_price:.0f} 🔥"
+                    btn_text = f"{label} — ~${img.price:.0f}~ ${sale_price:.0f} 🔥"
                 else:
-                    status = f"${img.price:.0f}"
+                    btn_text = f"{label} — ${img.price:.0f}"
             keyboard.append([
                 InlineKeyboardButton(
-                    f"{'✅ ' if owned else ''}{img.title} — {status}",
+                    btn_text,
                     callback_data=f"img_{img.id}"
                 )
             ])
