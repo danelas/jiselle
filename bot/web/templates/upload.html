@@ -52,7 +52,7 @@
             </div>
         </div>
 
-        <!-- Category (only shown for Private uploads) -->
+        <!-- Category -->
         <div id="category-section">
             <label class="block text-sm font-medium text-gray-300 mb-2">Category</label>
             <select name="category_id" id="category-select"
@@ -61,7 +61,13 @@
                 <option value="{{ cat.id }}" data-name="{{ cat.name }}">{{ cat.emoji or '📁' }} {{ cat.name }}</option>
                 {% endfor %}
             </select>
-            <p id="ig-cat-note" class="hidden text-green-400 text-xs mt-2">📸 Instagram images are automatically categorized.</p>
+            <p id="ig-cat-note" class="hidden text-green-400 text-xs mt-2">📸 Instagram images are automatically placed in Instagram Posts.</p>
+            <div id="ai-cat-note" class="hidden card rounded-xl p-4 mt-3 border border-purple-500/30 bg-purple-500/5">
+                <p class="font-medium text-sm text-purple-400">🤖 AI Auto-Categorization Active</p>
+                <p class="text-gray-400 text-xs mt-1">OpenAI Vision will scan each image and automatically sort into:<br>
+                    <span class="text-white">🌹 Lingerie</span> · <span class="text-white">✨ Lifestyle</span> · <span class="text-white">🔒 Exclusive Private</span><br>
+                    Nudity will be auto-detected and flagged 🔞</p>
+            </div>
         </div>
 
         <div class="grid grid-cols-2 gap-6">
@@ -97,7 +103,7 @@
             </label>
         </div>
 
-        <p class="text-gray-600 text-xs">Titles are auto-generated from filenames. You can edit them later in the gallery.</p>
+        <p class="text-gray-600 text-xs">Titles are auto-generated from the assigned category. You can edit them later in the gallery.</p>
 
         <!-- Submit -->
         <button type="submit" id="upload-btn"
@@ -176,14 +182,19 @@
     const igNote = document.getElementById('ig-cat-note');
     const contentRadios = document.querySelectorAll('input[name="content_type"]');
 
+    const aiNote = document.getElementById('ai-cat-note');
+    const explicitSection = document.getElementById('explicit-section');
+
     contentRadios.forEach(radio => {
         radio.addEventListener('change', () => {
             const opts = catSelect.options;
             if (radio.value === 'instagram') {
-                // Hide category picker, show note
+                // Hide category picker + explicit toggle, show IG note
                 catSelect.disabled = true;
-                catSelect.style.opacity = '0.4';
+                catSelect.style.display = 'none';
                 igNote.classList.remove('hidden');
+                aiNote.classList.add('hidden');
+                explicitSection.style.display = 'none';
                 // Auto-select Instagram Posts
                 for (let i = 0; i < opts.length; i++) {
                     if (opts[i].dataset.name === 'Instagram Posts') {
@@ -192,11 +203,13 @@
                     }
                 }
             } else {
-                // Show category picker, hide IG options
-                catSelect.disabled = false;
-                catSelect.style.opacity = '1';
+                // Hide manual category picker, show AI note
+                catSelect.disabled = true;
+                catSelect.style.display = 'none';
                 igNote.classList.add('hidden');
-                // Select first non-Instagram category
+                aiNote.classList.remove('hidden');
+                explicitSection.style.display = 'block';
+                // Select first non-Instagram category as fallback
                 for (let i = 0; i < opts.length; i++) {
                     if (opts[i].dataset.name !== 'Instagram Posts') {
                         catSelect.selectedIndex = i;
@@ -210,7 +223,7 @@
     uploadForm.addEventListener('submit', () => {
         catSelect.disabled = false; // re-enable so value is submitted
         uploadBtn.disabled = true;
-        uploadBtn.textContent = '⏳ Uploading...';
+        uploadBtn.textContent = '🤖 Uploading & AI Classifying...';
     });
 </script>
 {% endblock %}
